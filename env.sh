@@ -4,7 +4,18 @@
 export ACCOUNT=bio260082p
 # PROJECT defaults to the directory this file lives in, so a fresh clone runs
 # unmodified. Set PROJECT in the environment to override.
-export PROJECT="${PROJECT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+_envsh="${BASH_SOURCE[0]:-$0}"
+_guess="$(cd "$(dirname "$_envsh")" 2>/dev/null && pwd)"
+[ -f "$_guess/vmhlib.py" ] || _guess="${SLURM_SUBMIT_DIR:-$PWD}"
+[ -f "$_guess/vmhlib.py" ] || _guess="$PWD"
+export PROJECT="${PROJECT:-$_guess}"
+unset _guess
+unset _envsh
+if [ ! -f "$PROJECT/vmhlib.py" ]; then
+    echo "env.sh: PROJECT=$PROJECT does not contain vmhlib.py." >&2
+    echo "Set PROJECT explicitly to the checkout directory." >&2
+    return 1 2>/dev/null || exit 1
+fi
 
 # conda base is the shared system install; the account has no `conda init`,
 # so source the hook and activate by FULL PREFIX PATH, never by name.
