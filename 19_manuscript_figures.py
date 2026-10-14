@@ -107,67 +107,104 @@ def fig1():
 
 # ------------------------------------------------------------------ Figure 2
 def fig2():
-    cc = j("conserved_classes.json")
+    """Class-level structure: nested partition, class contrasts, marker composition."""
+    npart = j("nested_partition.json"); cc = j("conserved_classes.json")
     mk = t("marker_classes_cons6.csv")
-    fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.2))
+    fig, ax = plt.subplots(1, 3, figsize=(11.0, 3.3))
 
-    part = cc["variance_partition"]
-    labels = ["between\nconserved classes", "between clusters\nwithin LepR class"]
-    xs = np.arange(2); w = 0.36
-    for k, (tag, col) in enumerate((("raw", BLUE), ("depth_residualized", "#9FB8DC"))):
-        p = part[tag]
-        means = [p["eps2_between_conserved_classes"]["mean"],
-                 p["eps2_between_clusters_within_lepr_class"]["mean"]]
-        lo = [means[0] - p["eps2_between_conserved_classes"]["min"],
-              means[1] - p["eps2_between_clusters_within_lepr_class"]["min"]]
-        hi = [p["eps2_between_conserved_classes"]["max"] - means[0],
-              p["eps2_between_clusters_within_lepr_class"]["max"] - means[1]]
-        ax[0].bar(xs + (k - 0.5) * w, means, w, yerr=[lo, hi], capsize=3, color=col,
-                  label="raw" if tag == "raw" else "depth-residualized")
-    ratio = part["raw"].get("ratio_between_over_within")
-    ax[0].set_xticks(xs); ax[0].set_xticklabels(labels, fontsize=7)
-    ax[0].set_ylabel("$\\epsilon^2$"); ax[0].axhline(0, color="k", lw=0.5)
-    ax[0].legend(frameon=False)
-    ax[0].set_title(f"A   Variance partition (ratio {ratio})", loc="left")
+    comp = npart["nested_all_vmh"]
+    keys = ["pct_class", "pct_cluster_in_class"]
+    labs = ["conserved\nclass", "cluster within\nclass"]
+    m = [comp[k]["mean"] for k in keys]
+    lo = [comp[k]["mean"] - comp[k]["min"] for k in keys]
+    hi = [comp[k]["max"] - comp[k]["mean"] for k in keys]
+    ax[0].bar(labs, m, yerr=[lo, hi], capsize=4, color=[BLUE, "#9FB8DC"])
+    ax[0].set_ylabel("% of variance")
+    ax[0].set_title("A   Nested partition", loc="left")
 
     pair = cc["lepr_class_vs_others"]
-    keys = sorted(pair, key=lambda k: pair[k]["diff_mean_over_seeds"])
-    names = [k.split("_vs_")[1] for k in keys]
-    vals = [pair[k]["diff_mean_over_seeds"] for k in keys]
-    err = [pair[k]["diff_range"] / 2 for k in keys]
-    cols = [RED if pair[k]["sign_consistent_across_seeds"] else GREY for k in keys]
-    ax[1].barh(np.arange(len(keys)), vals, xerr=err, capsize=3, color=cols, edgecolor="white")
-    ax[1].set_yticks(np.arange(len(keys))); ax[1].set_yticklabels(names)
-    ax[1].axvline(0, color="k", lw=0.6)
-    ax[1].set_xlabel("LepR class $-$ other class (H$-$D)")
-    ax[1].set_title("B   Conserved LepR class vs others", loc="left")
-    ax[1].legend(handles=[Patch(color=RED, label="sign consistent, 20/20 draws")],
-                 loc="lower right", frameon=False)
+    kk = sorted(pair, key=lambda k: pair[k]["diff_mean_over_seeds"])
+    ax[1].barh(np.arange(len(kk)), [pair[k]["diff_mean_over_seeds"] for k in kk],
+               xerr=[pair[k]["diff_range"]/2 for k in kk], capsize=3,
+               color=[RED if pair[k]["sign_consistent_across_seeds"] else GREY for k in kk],
+               edgecolor="white")
+    ax[1].set_yticks(np.arange(len(kk)))
+    ax[1].set_yticklabels([k.split("_vs_")[1] for k in kk], fontsize=7)
+    ax[1].axvline(0, color="k", lw=.6)
+    ax[1].set_xlabel("LepR class $-$ other (H$-$D)")
+    ax[1].set_title("B   Class contrasts", loc="left")
 
     want = ["Gck", "Bdnf", "Esr1"]
     groups = sorted({r["group"] for r in mk})
     byg = {(r["group"], r["gene"]): r for r in mk}
-    xs = np.arange(len(groups)); w = 0.26
+    xs = np.arange(len(groups)); w = .26
     for i, gene in enumerate(want):
-        vals = [float(byg[(g, gene)]["log_cp10k_mean"]) if (g, gene) in byg else 0
-                for g in groups]
-        lo = [vals[k] - float(byg[(g, gene)]["ci_lo"]) for k, g in enumerate(groups)]
-        hi = [float(byg[(g, gene)]["ci_hi"]) - vals[k] for k, g in enumerate(groups)]
-        ax[2].bar(xs + (i - 1) * w, vals, w, yerr=[lo, hi], capsize=2,
-                  label=it(gene), color=[BLUE, ORANGE, "#6E6E6E"][i])
-    ax[2].set_xticks(xs)
-    ax[2].set_xticklabels(groups, rotation=45, ha="right", fontsize=7)
-    ax[2].set_ylabel("log-CP10k"); ax[2].legend(frameon=False, ncol=3, fontsize=6.5)
-    ax[2].set_title("C   Marker composition by conserved class", loc="left")
+        v = [float(byg[(g, gene)]["log_cp10k_mean"]) if (g, gene) in byg else 0 for g in groups]
+        ax[2].bar(xs + (i-1)*w, v, w, label=it(gene), color=[BLUE, ORANGE, "#6E6E6E"][i])
+    ax[2].set_xticks(xs); ax[2].set_xticklabels(groups, rotation=45, ha="right", fontsize=6.5)
+    ax[2].set_ylabel("log-CP10k"); ax[2].legend(frameon=False, ncol=3, fontsize=6)
+    ax[2].set_title("C   Marker composition", loc="left")
 
-    fig.tight_layout(); save(fig, "Fig2_conserved_classes"); return fig
+    fig.tight_layout(); save(fig, "Fig2_class_level"); return fig
 
 
-# ------------------------------------------------------------------ Figure 3
 def fig3():
-    disc, dep, disp = j("discreteness.json"), j("trpc5_depth.json"), j("dispersion.json")
+    """Within-class survey: per-class excess, threshold sweep, detectability."""
+    cn = j("class_nulls.json"); npart = j("nested_partition.json")
+    mc = j("mincluster_sensitivity.json")
+    fig, ax = plt.subplots(1, 3, figsize=(12.5, 3.8))
+
+    bc = cn["by_class"]
+    order = sorted(bc, key=lambda c: -(bc[c]["excess_over_null"]))
+    x = np.arange(len(order))
+    exc = [bc[c]["excess_over_null"] for c in order]
+    cols = [RED if c == "Lepr" else GREY for c in order]
+    ax[0].bar(x, exc, color=cols, edgecolor="0.3", lw=.5)
+    ax[0].axhline(0, color="k", lw=.6)
+    ax[0].set_ylim(-1.2, max(exc) * 1.14)
+    for xi, c in enumerate(order):
+        v = exc[xi]
+        ax[0].annotate(f"{v:.2f}", (xi, v), textcoords="offset points",
+                       xytext=(0, 4 if v >= 0 else -9), ha="center", fontsize=6.5,
+                       color=RED if c == "Lepr" else "0.25")
+        ax[0].annotate(f"k={bc[c]['n_clusters']}, n={bc[c]['n_nuclei']}", (xi, 0),
+                       xycoords=("data", "axes fraction"), textcoords="offset points",
+                       xytext=(0, -26), ha="center", fontsize=5.5, color="0.4",
+                       annotation_clip=False)
+    ax[0].set_xticks(x); ax[0].set_xticklabels(order, fontsize=7)
+    ax[0].tick_params(axis="x", pad=3)
+    ax[0].set_ylabel("excess over chance (%)")
+    ax[0].set_title("A   Within-class structure by class", loc="left")
+
+    thr = mc["thresholds"]
+    for c, col in (("Nfib", BLUE), ("Lepr", RED), ("Esr1", "0.45")):
+        v = [mc["by_class"][c][str(t_)].get("excess") for t_ in thr]
+        ok = [(t_, x_) for t_, x_ in zip(thr, v) if x_ is not None]
+        ax[1].plot([a for a, _ in ok], [b for _, b in ok], "o-", color=col, label=c, ms=4)
+    ax[1].axhline(0, color="k", lw=.6)
+    ax[1].set_xlabel("minimum cluster size (nuclei)")
+    ax[1].set_ylabel("excess over chance (%)")
+    ax[1].legend(frameon=False, fontsize=7)
+    ax[1].set_title("B   Excluding small clusters", loc="left")
+
+    lev = npart["power_matched_control"]["levels"]
+    ax[2].plot([l["effect_sd_units"] for l in lev],
+               [l["recovered_pct"]["mean"] for l in lev], "o-", color=ORANGE)
+    obs = npart["within_lepr_class_nine_clusters"]["pct"]["mean"]
+    ax[2].axhline(obs, color=RED, ls="--", lw=.9)
+    ax[2].text(0.40, obs, "observed ", color=RED, fontsize=6.5, va="bottom", ha="right")
+    ax[2].set_xlabel("injected cluster effect (SD units)")
+    ax[2].set_ylabel("variance recovered (%)")
+    ax[2].set_title("C   Detectability, given cluster labels", loc="left")
+
+    fig.tight_layout(); save(fig, "Fig3_within_class_survey"); return fig
+
+
+# ------------------------------------------------------------------ Figure 4
+def fig4():
+    disc, dep = j("discreteness.json"), j("trpc5_depth.json")
     null = [float(r["lr"]) for r in t("trpc5_depth_null.csv")]
-    fig, ax = plt.subplots(1, 4, figsize=(13.5, 3.2))
+    fig, ax = plt.subplots(1, 3, figsize=(11.5, 3.3))
 
     mix = disc["observed"]["mixture"]
     ks = [m["k"] for m in mix]; bics = [m["bic"] for m in mix]
@@ -183,17 +220,17 @@ def fig3():
     lev = disc["power_simulation"]["levels"]
     ax[1].plot([l["effect_sd_units"] for l in lev],
                [l["pct_sims_bic_picks_k_ge_2"] for l in lev], "s--", color=ORANGE, ms=5)
-    ax[1].axhline(80, color="0.6", ls=":", lw=0.7)
+    ax[1].axhline(80, color="0.6", ls=":", lw=.7)
     ax[1].set_xlabel("simulated split (SD units)")
     ax[1].set_ylabel("% simulations detecting a split")
     ax[1].set_ylim(0, 105)
-    ax[1].set_title("B   Power of the same test", loc="left")
+    ax[1].set_title("B   Power, unsupervised mixture recovery", loc="left")
 
     raw = dep["downsampling"]["pct_detected_raw"]
     ds = dep["downsampling"]["pct_detected_downsampled"]
-    ks2 = sorted(raw, key=lambda k: -raw[k]); x = np.arange(len(ks2)); w = 0.38
-    ax[2].bar(x - w / 2, [raw[k] for k in ks2], w, label="observed", color=ORANGE)
-    ax[2].bar(x + w / 2, [ds[k] for k in ks2], w, color=GREY,
+    ks2 = sorted(raw, key=lambda k: -raw[k]); x = np.arange(len(ks2)); w = .38
+    ax[2].bar(x - w/2, [raw[k] for k in ks2], w, label="observed", color=ORANGE)
+    ax[2].bar(x + w/2, [ds[k] for k in ks2], w, color=GREY,
               label=f"depth-matched ({dep['downsampling']['target_umi']} UMI)")
     ax[2].set_xticks(x); ax[2].set_xticklabels(ks2, rotation=90, fontsize=6)
     ax[2].set_ylabel(f"% nuclei {it('Trpc5')}+")
@@ -203,23 +240,11 @@ def fig3():
                     f"{dep['empirical_null']['trpc5_percentile']:.1f}th pct of null",
                     loc="left", fontsize=7.5)
 
-    sd = disp["depth_residualized"]["sd_by_population"]
-    pops = [p for p in ("POMC", "AgRP", "VMH_SF1") if p in sd]
-    means = [sd[p]["mean"] for p in pops]
-    lo = [sd[p]["mean"] - sd[p]["min"] for p in pops]
-    hi = [sd[p]["max"] - sd[p]["mean"] for p in pops]
-    ax[3].bar([p.replace("_", " ") for p in pops], means, yerr=[lo, hi], capsize=3,
-              color=[GREY if p != "VMH_SF1" else RED for p in pops])
-    ax[3].set_ylabel("SD of depth-residualized H$-$D")
-    r = disp["equal_n"]["sd_ratio_median"]
-    ax[3].set_title("D   Dispersion (VMH/POMC {:.2f}, VMH/AgRP {:.2f} at equal n)".format(
-        r["VMH_over_POMC"], r["VMH_over_AgRP"]), loc="left", fontsize=7.5)
-
-    fig.tight_layout(); save(fig, "Fig3_within_population"); return fig
+    fig.tight_layout(); save(fig, "Fig4_within_population"); return fig
 
 
-# ------------------------------------------------------------------ Figure 4
-def fig4():
+# ------------------------------------------------------------------ Figure 5
+def fig5():
     enr = t("trap_enrichment.csv")
     sc, xp = t("crosspop_scores.csv"), j("crosspop.json")
     fig, ax = plt.subplots(1, 2, figsize=(11.0, 4.0))
@@ -251,7 +276,7 @@ def fig4():
                           Patch(color=ORANGE, label="depolarizing")],
                  loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=2,
                  frameon=False, fontsize=7)
-    ax[0].set_title("A   Translatome enrichment ($*$ p < 0.05 unadjusted, n = 3)",
+    ax[0].set_title("A   Translatome enrichment ($*$ q < 0.05, BH, n = 3)",
                     loc="left", pad=30)
 
     pops = [r["population"] for r in sc]
@@ -274,17 +299,17 @@ def fig4():
                     f"(VMH vs POMC {c['diff_mean_over_seeds']:+.3f}, sign consistent)",
                     loc="left", fontsize=7.5)
 
-    fig.tight_layout(); save(fig, "Fig4_trap_crosspop"); return fig
+    fig.tight_layout(); save(fig, "Fig5_trap_crosspop"); return fig
 
 
 def main():
-    figs = [fig1(), fig2(), fig3(), fig4()]
+    figs = [fig1(), fig2(), fig3(), fig4(), fig5()]
     with PdfPages(os.path.join(C.FIGURES, "manuscript_figures.pdf")) as pdf:
         for f in figs:
             pdf.savefig(f, bbox_inches="tight")
     print("Figures written to", C.FIGURES)
     for fn in sorted(os.listdir(C.FIGURES)):
-        if fn.startswith(("Fig1_pop", "Fig2_cons", "Fig3_with", "Fig4_trap", "manuscript")):
+        if fn.startswith(("Fig1_", "Fig2_", "Fig3_", "Fig4_", "Fig5_", "manuscript")):
             print("  ", fn)
 
 
