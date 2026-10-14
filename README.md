@@ -80,9 +80,11 @@ retained because several analyses were developed against it.
 `11_ap_subunits.py` through `16_sigma1_trap.py` test adaptor protein complex subunit
 composition across the same populations. That work is **not part of this manuscript** and
 its results are reported elsewhere. The scripts are included because they share this
-pipeline's infrastructure and cached intermediates, and because `16` provides a worked
-example of the IP-over-supernatant check applied to a composition rather than a single
-gene.
+pipeline's infrastructure and cached intermediates, and because two of their findings bear
+on the manuscript's methods: the median nucleus in which the AP-1 sigma position is detected
+carries a single UMI across its three members, which is why per-cell compositional ratios are
+not used anywhere in the manuscript, and `16` provides a worked example of the IP-over-
+supernatant check applied to a composition rather than a single gene.
 
 ## Reproducibility notes
 
@@ -125,3 +127,18 @@ estimates can land exactly on zero.
 
 The six supplementary tables are included under `supplementary/` so that reported values
 can be checked without rerunning the pipeline.
+
+## Regenerating the supplementary tables
+
+`25_supplementary_tables.py` reads from `results/` and does not compute anything itself, so
+the files it needs must exist first. Tables S2 and S4 to S6 come from scripts 10 and 22 to
+24; table S1 needs `18_doublet_sensitivity.py` and table S3 needs `09_dispersion.py`. Running
+only 22 to 25 produces a workbook with those two sheets empty.
+
+## Verifying a clean checkout
+
+`run_verify.slurm` clones the released tag into a fresh directory, reruns scripts 22 to 25
+against the cached downloads, and checks the results against the values reported in the
+manuscript: five draw-averaged magnitudes, four claims stated as inequalities against each
+class's own chance expectation, and five ordering and leave-one-out structures. It edits
+paths in the slurm header and in `BASE` for the machine it runs on.

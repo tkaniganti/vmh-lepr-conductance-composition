@@ -2,7 +2,9 @@
 # Usage:  source /ocean/projects/bio260082p/kanigant/vmh-leptin-project/env.sh
 
 export ACCOUNT=bio260082p
-export PROJECT=/ocean/projects/bio260082p/kanigant/vmh-leptin-project
+# PROJECT defaults to the directory this file lives in, so a fresh clone runs
+# unmodified. Set PROJECT in the environment to override.
+export PROJECT="${PROJECT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
 # conda base is the shared system install; the account has no `conda init`,
 # so source the hook and activate by FULL PREFIX PATH, never by name.
