@@ -80,11 +80,9 @@ retained because several analyses were developed against it.
 `11_ap_subunits.py` through `16_sigma1_trap.py` test adaptor protein complex subunit
 composition across the same populations. That work is **not part of this manuscript** and
 its results are reported elsewhere. The scripts are included because they share this
-pipeline's infrastructure and cached intermediates, and because two of their findings bear
-on the manuscript's methods: the median nucleus in which the AP-1 sigma position is detected
-carries a single UMI across its three members, which is why per-cell compositional ratios are
-not used anywhere in the manuscript, and `16` provides a worked example of the IP-over-
-supernatant check applied to a composition rather than a single gene.
+pipeline's infrastructure and cached intermediates, and because `16` provides a worked
+example of the IP-over-supernatant check applied to a composition rather than a single
+gene.
 
 ## Reproducibility notes
 
