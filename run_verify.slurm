@@ -33,13 +33,14 @@ rm -rf "$VERIFY"
 mkdir -p "$VERIFY"
 cd "$VERIFY"
 
-echo "=== clean checkout of v1.1.0 ==="
-git clone --depth 1 --branch v1.1.0 \
+echo "=== clean checkout of v1.1.3 ==="
+git clone --depth 1 --branch v1.1.3 \
     https://github.com/tkaniganti/vmh-lepr-conductance-composition.git repo
 cd repo
 git log --oneline -1
 
 echo; echo "=== point at this checkout, reuse the existing conda env ==="
+export PROJECT="$VERIFY/repo"
 source ./env.sh
 mkdir -p results figures logs
 
@@ -57,7 +58,7 @@ echo; echo "=== rerunning 22 to 25 ==="
 for sc in 22_nested_partition.py 23_class_nulls.py 24_mincluster_sensitivity.py \
           25_supplementary_tables.py; do
     echo "--- $sc"
-    "$PY" "$sc" 2>/dev/null | tail -4
+    "$PY" "$sc" 2>&1 | tail -12
 done
 
 echo; echo "=== checking the claims the manuscript makes, not point estimates ==="

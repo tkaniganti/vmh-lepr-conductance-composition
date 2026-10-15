@@ -158,15 +158,11 @@ def main():
             for thr in d["thresholds"]:
                 rec = d["by_class"][cl].get(str(thr), {})
                 if "excess" in rec:
-                    flag = ("barely estimable, fewer than 4 clusters"
-                            if rec["n_clusters"] < 4 else "")
                     rows.append([cl, thr, rec["n_clusters"], rec["n_nuclei"],
-                                 rec["observed_mean"], rec["null_mean"], rec["excess"],
-                                 flag])
+                                 rec["observed_mean"], rec["null_mean"], rec["excess"]])
                 else:
                     rows.append([cl, thr, rec.get("n_clusters", ""),
-                                 rec.get("n_nuclei", ""), "", "", "",
-                                 "not computed, too few clusters or nuclei"])
+                                 rec.get("n_nuclei", ""), "", "", "not estimable"])
     sheet(wb, "S5 cluster size thresholds",
           "Supplementary Table S5. Within-class excess across minimum-cluster-size thresholds",
           "Clusters below the threshold are excluded and the chance expectation is "
@@ -174,7 +170,7 @@ def main():
           "so values at thresholds that reduce a class to that few clusters cannot be read "
           "as evidence either way.",
           ["Class", "Minimum cluster size", "Clusters retained", "Nuclei retained",
-           "Observed (%)", "Chance (%)", "Excess (%)", "Note"], rows)
+           "Observed (%)", "Chance (%)", "Excess (%)"], rows)
 
     # ---------------------------------------------------------------- S6
     d = load("class_nulls.json")
@@ -199,6 +195,44 @@ def main():
            "Nuclei per cluster (median)", "Observed mean (%)", "Observed min (%)",
            "Observed max (%)", "Draws at zero", "Chance mean (%)", "Chance 95th pct (%)",
            "Excess (%)", "Leave-one-out min (%)", "Leave-one-out max (%)"], rows)
+
+    # ---------------------------------------------------------------- S7
+    d = load("pomc_replication.json")
+    rows = []
+    if d:
+        inv = d.get("inventory", {})
+        t1 = d.get("test1_discreteness", {})
+        t3 = d.get("test3_scan", {})
+        t4 = d.get("test4_partition") or {}
+        rows.append(["Cells analysed", inv.get("n_cells", ""), ""])
+        for k, v in (t1.get("bic") or {}).items():
+            rows.append([f"Mixture BIC, k = {k}", v, ""])
+        rows.append(["Components selected by BIC", t1.get("best_k", ""), ""])
+        rows.append(["Dip test D", t1.get("dip_D", ""), ""])
+        rows.append(["Dip test p", t1.get("dip_p", ""), ""])
+        for lv in (d.get("test2_detectability", {}).get("levels") or []):
+            rows.append([f"Split of {lv['split_sd']} SD detected in",
+                         f"{lv['pct_detected']}%", "of 100 simulations"])
+        rows.append(["Transcripts tested", t3.get("n_tested", ""), ""])
+        rows.append(["Transcripts at q < 0.05", t3.get("n_q05", ""), ""])
+        rows.append(["Largest partial correlation", t3.get("max_abs_rho", ""),
+                     (t3.get("top") or [{}])[0].get("gene", "")])
+        rows.append(["Largest variance explained",
+                     f"{t3.get('max_pct_variance', '')}%", "uncorrected maximum"])
+        if t4:
+            rows.append([f"Between-subgroup variance ({t4.get('field','')}, k = {t4.get('k','')})",
+                         f"{t4.get('pct_between','')}%", ""])
+        else:
+            rows.append(["Between-subgroup variance", "not computed",
+                         "no deposited sub-labels for this population"])
+    sheet(wb, "S7 POMC calibration",
+          "Supplementary Table S7. Unsupervised structure in arcuate POMC neurons",
+          "The same test applied to a population known from intersectional targeting to "
+          "contain functionally distinct subpopulations (Biglari et al., 2021). It likewise "
+          "selects a single component, which calibrates the detectability bound against a "
+          "real case rather than only against simulation. The bound here is weaker than in "
+          "the VMH comparison because the sample is smaller.",
+          ["Quantity", "Value", "Note"], rows)
 
     out = os.path.join(R, "Supplementary_Tables.xlsx")
     wb.save(out)

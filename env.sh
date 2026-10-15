@@ -2,13 +2,13 @@
 # Usage:  source /ocean/projects/bio260082p/kanigant/vmh-leptin-project/env.sh
 
 export ACCOUNT=bio260082p
-# PROJECT defaults to the directory this file lives in, so a fresh clone runs
-# unmodified. Set PROJECT in the environment to override.
+# PROJECT always resolves to the directory this file lives in. It deliberately does
+# not honour an inherited PROJECT, since that variable is used for other purposes.
 _envsh="${BASH_SOURCE[0]:-$0}"
 _guess="$(cd "$(dirname "$_envsh")" 2>/dev/null && pwd)"
 [ -f "$_guess/vmhlib.py" ] || _guess="${SLURM_SUBMIT_DIR:-$PWD}"
 [ -f "$_guess/vmhlib.py" ] || _guess="$PWD"
-export PROJECT="${PROJECT:-$_guess}"
+export PROJECT="$_guess"
 unset _guess
 unset _envsh
 if [ ! -f "$PROJECT/vmhlib.py" ]; then

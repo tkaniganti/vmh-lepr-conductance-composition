@@ -148,12 +148,33 @@ paths in the slurm header and in `BASE` for the machine it runs on.
 
 `env.sh` resolves `PROJECT` to the directory it lives in, falling back to
 `SLURM_SUBMIT_DIR` and then the working directory, and it refuses to continue if the
-result does not contain `vmhlib.py`. An explicit `PROJECT` in the environment always
-wins. Slurm propagates the submitting shell's environment by default, so a `PROJECT`
-exported in an interactive session will travel into every subsequent job and override
-the resolution; `unset PROJECT` before submitting if a job reports paths outside the
-checkout.
+result does not contain `vmhlib.py`. An inherited `PROJECT` is deliberately ignored, because that variable is in common use for other purposes and an inherited value silently redirected several runs during development.
 
-`verification-log-v1.1.1.txt` is the output of `run_verify.slurm` against a clean clone
-of the v1.1.1 tag: fourteen checks covering draw-averaged magnitudes, the claims the
-manuscript states as inequalities, and the ordering and leave-one-out structures.
+`run_verify.slurm` writes its own log. It is not shipped in the release, because a log committed before a tag is cut necessarily describes a different tag than the one it ships in; the script regenerates it in about three minutes against whichever tag it names.
+
+## Correctness and identity checks
+
+Scripts 27 and 29 support claims made in the manuscript's Methods. The others are
+exploratory and are not cited in the paper.
+
+| script | question | main output |
+|---|---|---|
+| `26_insr_check.py` | is there a transcriptomic handle on insulin-responding VMH neurons | `insr_check.json` |
+| `27_correctness_checks.py` | parser verified against the raw matrix; random-gene panels; full label shuffle | `correctness_checks.json` |
+| `28_esr1_1_markers.py` | what distinguishes Esr1_1 from the rest of its class | `esr1_1_markers.csv` |
+| `29_esr1_1_identity.py` | is Esr1_1 correctly assigned to the conserved Esr1 class | `esr1_1_identity.json` |
+| `30_pomc_replication.py` | the unsupervised structure test applied to arcuate POMC, as calibration | `pomc_replication.json` |
+
+Check 27 asks whether the pipeline is right rather than whether it reruns. The parser is
+compared entry by entry against the deposited matrix-market file without the analysis
+library; the effector panel is replaced by random genes to test whether the class-level
+component is specific to conductances; and all labels are permuted to confirm the
+decomposition reports nothing when the groupings carry no information. The pass criteria
+are positional, comparing observed values against the distributions they should exceed,
+with no threshold chosen by hand.
+
+`env.sh` no longer honours an inherited `PROJECT`. It always resolves to its own
+directory, because that variable is in common use for other purposes and an inherited
+value silently redirected several runs during development.
+
+`25_supplementary_tables.py` now builds seven sheets; S7 reads `pomc_replication.json`.
