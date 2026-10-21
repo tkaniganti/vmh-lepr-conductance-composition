@@ -168,6 +168,17 @@ decomposition reports nothing when the groupings carry no information. The pass 
 are positional, comparing observed values against the distributions they should exceed,
 with no threshold chosen by hand.
 
+`vmhlib.pass_rows` keys its cache on the set of rows requested, not on the caller's name
+for them. An earlier version keyed on the name alone, so a caller that reused a name for a
+different set of genes silently received the previous extraction. That affected only
+`27_correctness_checks.py`, whose random-panel loops reuse names across changing gene sets;
+every other script uses one name per tag and was unaffected, which a cold-cache rerun of the
+full pipeline confirmed.
+
+Check 27 also runs the random-panel substitution within the leptin-receptor clusters, which
+tests the circularity objection at the level the central claim is made, and reports observed
+values as percentiles of their null distributions rather than against a chosen threshold.
+
 `env.sh` no longer honours an inherited `PROJECT`. It always resolves to its own
 directory, because that variable is in common use for other purposes and an inherited
 value silently redirected several runs during development.

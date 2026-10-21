@@ -78,7 +78,12 @@ def pass_totals(prefix, col2group, tag):
 
 def pass_rows(prefix, rows, tag, name):
     """Extract all matrix entries for a set of gene rows."""
-    out = dpath(f"entries_{tag}_{name}.txt")
+    # Cache on the row set, not just the name. Keying on the name alone silently
+    # returned a previous run's entries when a caller reused a name for a different
+    # set of genes, which made every downstream value wrong without any error.
+    import hashlib
+    h = hashlib.sha1(",".join(str(r) for r in sorted(rows)).encode()).hexdigest()[:10]
+    out = dpath(f"entries_{tag}_{name}_{h}.txt")
     if os.path.exists(out):
         return out
     rf = dpath(f"rows_{tag}_{name}.txt")

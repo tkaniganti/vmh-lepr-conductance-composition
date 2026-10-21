@@ -33,8 +33,8 @@ rm -rf "$VERIFY"
 mkdir -p "$VERIFY"
 cd "$VERIFY"
 
-echo "=== clean checkout of v1.1.3 ==="
-git clone --depth 1 --branch v1.1.3 \
+echo "=== clean checkout of v1.1.4 ==="
+git clone --depth 1 --branch v1.1.4 \
     https://github.com/tkaniganti/vmh-lepr-conductance-composition.git repo
 cd repo
 git log --oneline -1

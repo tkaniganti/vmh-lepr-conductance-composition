@@ -6,7 +6,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=8
-#SBATCH --time=03:00:00
+#SBATCH --time=08:00:00
 #SBATCH --output=logs/vmh-corr-%j.out
 #SBATCH --error=logs/vmh-corr-%j.err
 set -euo pipefail

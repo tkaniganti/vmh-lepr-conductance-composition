@@ -236,6 +236,20 @@ def main():
 
     out = os.path.join(R, "Supplementary_Tables.xlsx")
     wb.save(out)
+    # Mirror into supplementary/ so the copy that ships in the release cannot drift
+    # from the copy this script writes. v1.1.3 shipped a six-sheet workbook while the
+    # manuscript cited seven, because only results/ was regenerated. The files also
+    # differ byte-for-byte on every run, since openpyxl embeds a timestamp, so a
+    # checksum comparison cannot be used to detect staleness.
+    import shutil
+    sup = os.path.join(os.path.dirname(os.path.normpath(R)), "supplementary")
+    os.makedirs(sup, exist_ok=True)
+    for f in ("Supplementary_Tables.xlsx", "class_membership.csv"):
+        src = os.path.join(R, f)
+        if os.path.exists(src):
+            shutil.copy2(src, os.path.join(sup, f))
+    print("Mirrored to", sup)
+
     print("Written", out)
     for ws in wb.worksheets:
         print(f"   {ws.title}: {ws.max_row - 4} rows")

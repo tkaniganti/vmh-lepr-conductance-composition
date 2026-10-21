@@ -42,7 +42,7 @@ import vmhlib as V
 warnings.filterwarnings("ignore")
 PREFIX, TAG = "GSE172204", "corr"
 N_SPOT_GENES, N_SPOT_CELLS = 4, 400
-N_RANDOM_PANELS, N_SHUFFLES = 10, 200
+N_RANDOM_PANELS, N_SHUFFLES = 100, 200
 
 
 # ----------------------------------------------------------------- CHECK A
@@ -122,7 +122,12 @@ def nested(y, cls, clu):
 
 
 def main():
-    rng = random.Random(cfg.RANDOM_SEED)
+    # One generator per check, so adding or removing a check cannot shift another's
+    # result. Offsets are arbitrary but fixed.
+    rng = random.Random(cfg.RANDOM_SEED)                 # CHECK A sampling
+    rng_b = random.Random(cfg.RANDOM_SEED + 1000)        # CHECK B panels
+    rng_b2 = random.Random(cfg.RANDOM_SEED + 2000)       # CHECK B2 panels
+    rng_c = np.random.default_rng(cfg.RANDOM_SEED + 3000)  # CHECK C shuffles
     feats, name2row = V.load_features(PREFIX)
     bcs, bc2col = V.load_barcodes(PREFIX)
     meta = V.load_metadata(PREFIX)
@@ -173,7 +178,7 @@ def main():
                   if name2row[g] in rowsum and rowsum[name2row[g]] > 0]
     recs = []
     for i in range(N_RANDOM_PANELS):
-        pick = rng.sample(detectable, min(2 * n_panel, len(detectable)))
+        pick = rng_b.sample(detectable, min(2 * n_panel, len(detectable)))
         fake = {"HYPER": [name2row[g] for g in pick[:n_panel]],
                 "DEPOL": [name2row[g] for g in pick[n_panel:2 * n_panel]]}
         fr, fc = V.choose_controls(name2row, rowsum, len(cols), cfg.RANDOM_SEED + 500 + i)
@@ -199,28 +204,109 @@ def main():
                   f"cluster-in-class {r['pct_cluster_in_class']:.3f}%", flush=True)
     if recs:
         a = np.array([[r["pct_class"], r["pct_cluster_in_class"]] for r in recs])
+        obs_c = out["observed"]["pct_class"]
+        p95_c = float(np.percentile(a[:, 0], 95))
+        above = float((a[:, 0] >= obs_c).mean())
         out["check_B_random_panels"] = {
             "n_panels": len(recs),
             "class_mean": round(float(a[:, 0].mean()), 4),
+            "class_median": round(float(np.median(a[:, 0])), 4),
+            "class_p95": round(p95_c, 4),
             "class_max": round(float(a[:, 0].max()), 4),
             "cluster_mean": round(float(a[:, 1].mean()), 4),
             "cluster_max": round(float(a[:, 1].max()), 4),
-            "observed_class": out["observed"]["pct_class"],
-            "pass": bool(a[:, 0].max() < out["observed"]["pct_class"]),
-            "note_criterion": "observed must exceed every random panel; no threshold chosen",
+            "observed_class": obs_c,
+            "fraction_of_panels_at_or_above_observed": round(above, 4),
+            "pass": bool(obs_c > p95_c),
+            "note_criterion": ("observed must exceed the 95th percentile of the random "
+                               "distribution; positional, matching CHECK C. Requiring it to "
+                               "beat the maximum made the verdict depend on the panel count"),
             "note": ("random panels should give a smaller class component than the effector "
                      "panel; if they do not, the estimator is reporting structure that is "
                      "not specific to conductance genes")}
-        print(f"   {'PASS' if out['check_B_random_panels']['pass'] else 'FAIL'}: "
-              f"random max {a[:, 0].max():.3f}% vs observed "
-              f"{out['observed']['pct_class']:.3f}%\n", flush=True)
+        print(f"   random: mean {a[:, 0].mean():.3f}%, median "
+              f"{np.median(a[:, 0]):.3f}%, p95 {p95_c:.3f}%, max {a[:, 0].max():.3f}%",
+              flush=True)
+        print(f"   observed {obs_c:.3f}% exceeds {int((1 - above) * len(recs))} of "
+              f"{len(recs)} panels", flush=True)
+        print(f"   {'PASS' if out['check_B_random_panels']['pass'] else 'FAIL'}\n",
+              flush=True)
+
+    # ------------------------------------------------------------- CHECK B2
+    # Within-class random panels. Check B tests whether the CLASS-level component is
+    # specific to conductance genes. It does not address the circularity objection at the
+    # level the central claim is made: clusters were derived from the same matrix, so the
+    # question is whether an arbitrary gene set shows within-class structure in
+    # expression-defined clusters. Label shuffling cannot answer that, because shuffling
+    # destroys the cluster assignment while the objection is about how it was made.
+    print(">> CHECK B2: random panels within the leptin-receptor class", flush=True)
+    focus = (cls == "Lepr") & np.array([c.startswith("Lepr_") for c in clu])
+    print(f"   focus set: {int(focus.sum())} nuclei, {len(set(clu[focus]))} clusters",
+          flush=True)
+
+    def one_way(y_, g_):
+        import pandas as _pd
+        df = _pd.DataFrame({"y": np.asarray(y_, float), "g": np.asarray(g_)})
+        n_, k_ = len(df), df.g.nunique()
+        if k_ < 2 or n_ <= k_:
+            return None
+        gm = df.y.mean()
+        ssb = sum(len(g) * (g.y.mean() - gm) ** 2 for _, g in df.groupby("g"))
+        ssw = sum(((g.y - g.y.mean()) ** 2).sum() for _, g in df.groupby("g"))
+        msb, msw = ssb / (k_ - 1), ssw / (n_ - k_)
+        ni = df.groupby("g").size().to_numpy(float)
+        n0 = (n_ - (ni ** 2).sum() / n_) / (k_ - 1)
+        sb = max((msb - msw) / n0, 0.0)
+        return 100 * sb / (sb + msw)
+
+    obs_focus = one_way(y[focus], clu[focus])
+    recs2 = []
+    for i in range(N_RANDOM_PANELS):
+        pick = rng_b2.sample(detectable, min(2 * n_panel, len(detectable)))
+        fake = {"HYPER": [name2row[g] for g in pick[:n_panel]],
+                "DEPOL": [name2row[g] for g in pick[n_panel:2 * n_panel]]}
+        fr, fc = V.choose_controls(name2row, rowsum, len(cols), cfg.RANDOM_SEED + 900 + i)
+        need = set(fake["HYPER"]) | set(fake["DEPOL"]) | {
+            r for rs_ in list(fc.values()) for r in rs_}
+        e = V.pass_rows(PREFIX, need, TAG, f"wrand{i}")
+        ex = defaultdict(dict)
+        for l in open(e):
+            r, c, v = l.split()
+            c = int(c)
+            if c in c2c:
+                ex[c][int(r)] = float(v)
+        try:
+            ys = V.module_scores(ex, cols, colsum, fake, fc)["HminusD"]
+        except Exception:
+            continue
+        ys = ys - np.polyval(np.polyfit(ld, ys, 1), ld)
+        v2 = one_way(ys[focus], clu[focus])
+        if v2 is not None:
+            recs2.append(v2)
+            print(f"   panel {i}: within-class {v2:.3f}%", flush=True)
+    if recs2:
+        a2 = np.array(recs2, float)
+        out["check_B2_within_class_random_panels"] = {
+            "n_panels": len(recs2), "n_nuclei": int(focus.sum()),
+            "n_clusters": len(set(clu[focus])),
+            "observed_effector_panel": round(float(obs_focus), 4),
+            "random_mean": round(float(a2.mean()), 4),
+            "random_max": round(float(a2.max()), 4),
+            "random_p95": round(float(np.percentile(a2, 95)), 4),
+            "note": ("the effector panel should not stand out against arbitrary panels here, "
+                     "since the claim is that no gene set resolves these clusters; a random "
+                     "mean near the observed value supports the claim, a random mean far "
+                     "below it would mean arbitrary genes find even less and the comparison "
+                     "needs restating")}
+        print(f"   observed (effector panel) {obs_focus:.3f}%  vs random mean "
+              f"{a2.mean():.3f}%, max {a2.max():.3f}%\n", flush=True)
 
     # ------------------------------------------------------------- CHECK C
     print(">> CHECK C: full label shuffle, nothing preserved", flush=True)
     recs = []
     for i in range(N_SHUFFLES):
         idx = np.arange(len(cols))
-        rng.shuffle(idx)
+        rng_c.shuffle(idx)
         r = nested(y, cls[idx], clu[idx])
         if r:
             recs.append(r)
