@@ -29,7 +29,7 @@ try:
 except Exception:
     HAVE_DIP = False
 
-EFFECT_SIZES = [0.25, 0.5, 1.0, 2.0]   # synthetic log-fold shifts in the effector panels
+EFFECT_SIZES = [0.25, 0.5, 1.0, 1.25, 1.5, 1.75, 2.0]   # injected split sizes, in units of the observed SD (see line ~87)
 N_SIM = 25
 
 

@@ -89,8 +89,14 @@ def pass_rows(prefix, rows, tag, name):
     rf = dpath(f"rows_{tag}_{name}.txt")
     with open(rf, "w") as fh:
         fh.write("\n".join(str(r) for r in sorted(rows)) + "\n")
+    # Write to a temporary path and rename on completion. Writing straight to `out`
+    # leaves a truncated file there if the job is interrupted, and every later run
+    # returns it as a valid cache: the hash covers the requested rows, not the file
+    # that was produced. os.replace is atomic within a filesystem.
+    tmp = out + ".partial"
     sh(f"zcat {dpath(prefix + '_matrix.mtx.gz')} | awk 'NR==FNR{{need[$1]=1; next}} "
-       f"/^%/{{next}} !dims{{dims=1; next}} {{ if($1 in need) print $1,$2,$3 }}' {rf} - > {out}")
+       f"/^%/{{next}} !dims{{dims=1; next}} {{ if($1 in need) print $1,$2,$3 }}' {rf} - > {tmp}")
+    os.replace(tmp, out)
     return out
 
 

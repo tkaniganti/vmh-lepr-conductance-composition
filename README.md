@@ -72,7 +72,7 @@ Manuscript analyses:
 | `19_manuscript_figures.py` | the five manuscript figures, every annotated statistic read from `results/` | `figures/manuscript_figures.pdf` |
 
 `07_figures.py` produced an earlier figure set that the manuscript no longer uses. It is
-retained because several analyses were developed against it.
+retained because several analyses were developed against it. Both scripts write into `figures/`: the manuscript's panels are the five files named `Fig1_population` through `Fig5_trap_crosspop`, and the four named `Fig1_population_effector`, `Fig2_depth_discreteness`, `Fig3_TRAP_enrichment` and `Fig4_crosspopulation` are the superseded set.
 
 ## Scripts 11 to 16: a separate line of work
 

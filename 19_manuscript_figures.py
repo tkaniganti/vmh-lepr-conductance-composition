@@ -23,6 +23,8 @@ import os, json, csv
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
+
+
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.patches import Patch
@@ -76,7 +78,7 @@ def fig1():
         ax[0].text(xi - w / 2, a + 1.5, f"{a:.1f}", ha="center", fontsize=6.5)
         ax[0].text(xi + w / 2, b + 1.5, f"{b:.1f}", ha="center", fontsize=6.5)
     ax[0].set_xticks(x); ax[0].set_xticklabels([it(g) for g in genes])
-    ax[0].set_ylabel("% nuclei with $\\geq$1 UMI"); ax[0].set_ylim(0, 100)
+    ax[0].set_ylabel("Nuclei with $\\geq$1 UMI (%)"); ax[0].set_ylim(0, 100)
     ax[0].legend(loc="upper left", frameon=False)
     ax[0].set_title("A   Detection of defining transcripts", loc="left")
 
@@ -87,8 +89,8 @@ def fig1():
     for b, v in zip(bars, [n_lepr, g["lepr_clusters"]]):
         ax[1].text(b.get_x() + b.get_width() / 2, v, f"{v:,}", ha="center",
                    va="bottom", fontsize=7)
-    ax[1].set_ylabel("LepR nuclei retained")
-    ax[1].set_title(f"B   A per-cell gate retains {g['lepr_pct']}%", loc="left")
+    ax[1].set_ylabel("LepR nuclei retained (n)")
+    ax[1].set_title("B   Nuclei retained by a per-cell gate", loc="left")
 
     rr = sorted(cs, key=lambda r: float(r["HminusD"]))
     y = np.arange(len(rr))
@@ -100,7 +102,7 @@ def fig1():
     ax[2].legend(handles=[Patch(color=RED, label="LepR cluster"),
                           Patch(color=GREY, label="other VMH")],
                  loc="lower right", frameon=False)
-    ax[2].set_title("C   Effector axis, 24 VMH clusters", loc="left")
+    ax[2].set_title("C   Effector balance across VMH clusters", loc="left")
 
     fig.tight_layout(); save(fig, "Fig1_population"); return fig
 
@@ -119,8 +121,8 @@ def fig2():
     lo = [comp[k]["mean"] - comp[k]["min"] for k in keys]
     hi = [comp[k]["max"] - comp[k]["mean"] for k in keys]
     ax[0].bar(labs, m, yerr=[lo, hi], capsize=4, color=[BLUE, "#9FB8DC"])
-    ax[0].set_ylabel("% of variance")
-    ax[0].set_title("A   Nested partition", loc="left")
+    ax[0].set_ylabel("Variance explained (%)")
+    ax[0].set_title("A   Nested variance partition", loc="left")
 
     pair = cc["lepr_class_vs_others"]
     kk = sorted(pair, key=lambda k: pair[k]["diff_mean_over_seeds"])
@@ -132,7 +134,7 @@ def fig2():
     ax[1].set_yticklabels([k.split("_vs_")[1] for k in kk], fontsize=7)
     ax[1].axvline(0, color="k", lw=.6)
     ax[1].set_xlabel("LepR class $-$ other (H$-$D)")
-    ax[1].set_title("B   Class contrasts", loc="left")
+    ax[1].set_title("B   Class contrasts on the effector axis", loc="left")
 
     want = ["Gck", "Bdnf", "Esr1"]
     groups = sorted({r["group"] for r in mk})
@@ -142,8 +144,8 @@ def fig2():
         v = [float(byg[(g, gene)]["log_cp10k_mean"]) if (g, gene) in byg else 0 for g in groups]
         ax[2].bar(xs + (i-1)*w, v, w, label=it(gene), color=[BLUE, ORANGE, "#6E6E6E"][i])
     ax[2].set_xticks(xs); ax[2].set_xticklabels(groups, rotation=45, ha="right", fontsize=6.5)
-    ax[2].set_ylabel("log-CP10k"); ax[2].legend(frameon=False, ncol=3, fontsize=6)
-    ax[2].set_title("C   Marker composition", loc="left")
+    ax[2].set_ylabel("Expression (log-CP10k)"); ax[2].legend(frameon=False, ncol=3, fontsize=6)
+    ax[2].set_title("C   Marker expression by class", loc="left")
 
     fig.tight_layout(); save(fig, "Fig2_class_level"); return fig
 
@@ -173,8 +175,8 @@ def fig3():
                        annotation_clip=False)
     ax[0].set_xticks(x); ax[0].set_xticklabels(order, fontsize=7)
     ax[0].tick_params(axis="x", pad=3)
-    ax[0].set_ylabel("excess over chance (%)")
-    ax[0].set_title("A   Within-class structure by class", loc="left")
+    ax[0].set_ylabel("Excess over chance (%)")
+    ax[0].set_title("A   Within-class structure, by class", loc="left")
 
     thr = mc["thresholds"]
     for c, col in (("Nfib", BLUE), ("Lepr", RED), ("Esr1", "0.45")):
@@ -182,10 +184,10 @@ def fig3():
         ok = [(t_, x_) for t_, x_ in zip(thr, v) if x_ is not None]
         ax[1].plot([a for a, _ in ok], [b for _, b in ok], "o-", color=col, label=c, ms=4)
     ax[1].axhline(0, color="k", lw=.6)
-    ax[1].set_xlabel("minimum cluster size (nuclei)")
-    ax[1].set_ylabel("excess over chance (%)")
+    ax[1].set_xlabel("Minimum cluster size (nuclei)")
+    ax[1].set_ylabel("Excess over chance (%)")
     ax[1].legend(frameon=False, fontsize=7)
-    ax[1].set_title("B   Excluding small clusters", loc="left")
+    ax[1].set_title("B   Sensitivity to minimum cluster size", loc="left")
 
     lev = npart["power_matched_control"]["levels"]
     ax[2].plot([l["effect_sd_units"] for l in lev],
@@ -193,9 +195,9 @@ def fig3():
     obs = npart["within_lepr_class_nine_clusters"]["pct"]["mean"]
     ax[2].axhline(obs, color=RED, ls="--", lw=.9)
     ax[2].text(0.40, obs, "observed ", color=RED, fontsize=6.5, va="bottom", ha="right")
-    ax[2].set_xlabel("injected cluster effect (SD units)")
-    ax[2].set_ylabel("variance recovered (%)")
-    ax[2].set_title("C   Detectability, given cluster labels", loc="left")
+    ax[2].set_xlabel("Injected cluster effect (SD)")
+    ax[2].set_ylabel("Variance recovered (%)")
+    ax[2].set_title("C   Detectability given cluster labels", loc="left")
 
     fig.tight_layout(); save(fig, "Fig3_within_class_survey"); return fig
 
@@ -212,19 +214,19 @@ def fig4():
     best = disc["observed"]["best_k_by_bic"]
     ax[0].scatter([best], [bics[ks.index(best)]], s=70, facecolors="none",
                   edgecolors=RED, zorder=5, linewidths=1.4)
-    ax[0].set_xticks(ks); ax[0].set_xlabel("mixture components"); ax[0].set_ylabel("BIC")
+    ax[0].set_xticks(ks); ax[0].set_xlabel("Mixture components"); ax[0].set_ylabel("BIC")
     d = disc["observed"].get("dip", {})
     ptxt = f"dip p = {d.get('p'):.3f}" if isinstance(d, dict) and "p" in d else ""
-    ax[0].set_title(f"A   Unimodal at k = {best}   ({ptxt})", loc="left")
+    ax[0].set_title("A   Mixture model selection", loc="left")
 
     lev = disc["power_simulation"]["levels"]
     ax[1].plot([l["effect_sd_units"] for l in lev],
                [l["pct_sims_bic_picks_k_ge_2"] for l in lev], "s--", color=ORANGE, ms=5)
     ax[1].axhline(80, color="0.6", ls=":", lw=.7)
-    ax[1].set_xlabel("simulated split (SD units)")
-    ax[1].set_ylabel("% simulations detecting a split")
+    ax[1].set_xlabel("Simulated split (SD)")
+    ax[1].set_ylabel("Simulations detecting a split (%)")
     ax[1].set_ylim(0, 105)
-    ax[1].set_title("B   Power, unsupervised mixture recovery", loc="left")
+    ax[1].set_title("B   Power for unsupervised mixture recovery", loc="left")
 
     raw = dep["downsampling"]["pct_detected_raw"]
     ds = dep["downsampling"]["pct_detected_downsampled"]
@@ -233,12 +235,11 @@ def fig4():
     ax[2].bar(x + w/2, [ds[k] for k in ks2], w, color=GREY,
               label=f"depth-matched ({dep['downsampling']['target_umi']} UMI)")
     ax[2].set_xticks(x); ax[2].set_xticklabels(ks2, rotation=90, fontsize=6)
-    ax[2].set_ylabel(f"% nuclei {it('Trpc5')}+")
+    ax[2].set_ylabel(f"Nuclei {it('Trpc5')}-positive (%)")
     lg = dep["logistic_cluster_given_depth"]
     ax[2].legend(frameon=False, fontsize=6.5)
-    ax[2].set_title(f"C   LR = {lg['LR']}, p = {lg['p']:.0e}; "
-                    f"{dep['empirical_null']['trpc5_percentile']:.1f}th pct of null",
-                    loc="left", fontsize=7.5)
+    ax[2].set_title("C   " + r"$\it{Trpc5}$" + " detection by cluster, with depth matching",
+                    loc="left")
 
     fig.tight_layout(); save(fig, "Fig4_within_population"); return fig
 
@@ -276,7 +277,7 @@ def fig5():
                           Patch(color=ORANGE, label="depolarizing")],
                  loc="lower center", bbox_to_anchor=(0.5, 1.01), ncol=2,
                  frameon=False, fontsize=7)
-    ax[0].set_title("A   Translatome enrichment ($*$ q < 0.05, BH, n = 3)",
+    ax[0].set_title("A   Translatome enrichment",
                     loc="left", pad=30)
 
     pops = [r["population"] for r in sc]
@@ -295,9 +296,7 @@ def fig5():
         [f"{p.replace(chr(95), chr(32))}\n(n={r['n']})" for p, r in zip(pops, sc)], fontsize=7)
     ax[1].axhline(0, color="k", lw=0.5)
     c = xp["contrasts"]["VMHSF1_vs_POMC_HminusD"]
-    ax[1].set_title("B   Cross-population placement "
-                    f"(VMH vs POMC {c['diff_mean_over_seeds']:+.3f}, sign consistent)",
-                    loc="left", fontsize=7.5)
+    ax[1].set_title("B   Cross-population placement", loc="left")
 
     fig.tight_layout(); save(fig, "Fig5_trap_crosspop"); return fig
 

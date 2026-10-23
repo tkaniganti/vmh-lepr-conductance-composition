@@ -33,8 +33,8 @@ rm -rf "$VERIFY"
 mkdir -p "$VERIFY"
 cd "$VERIFY"
 
-echo "=== clean checkout of v1.1.4 ==="
-git clone --depth 1 --branch v1.1.4 \
+echo "=== clean checkout of v1.1.5 ==="
+git clone --depth 1 --branch v1.1.5 \
     https://github.com/tkaniganti/vmh-lepr-conductance-composition.git repo
 cd repo
 git log --oneline -1
@@ -51,7 +51,7 @@ else
     echo; echo "=== linking cached downloads ==="
     rm -rf data
     ln -s "$BASE/vmh-leptin-project/data" data
-    ls data | head
+    ls data | head || true
 fi
 
 echo; echo "=== rerunning 22 to 25 ==="
