@@ -44,7 +44,13 @@ import re
 import sys
 
 FIGSCRIPT = "19_manuscript_figures.py"
-TABSCRIPT = "25_supplementary_tables.py"
+# The release keeps this under supplementary/ while the working tree has it at
+# the top level, so look in both. From a clean extract the top-level-only
+# version found no produced tables and reported all nine as cited-and-not-
+# produced: nine false failures for anyone running the checks from the archive.
+TABSCRIPT = next((p_ for p_ in ("25_supplementary_tables.py",
+                                "supplementary/25_supplementary_tables.py")
+                  if os.path.exists(p_)), "25_supplementary_tables.py")
 
 
 def main():
