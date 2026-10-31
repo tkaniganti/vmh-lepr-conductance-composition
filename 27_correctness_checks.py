@@ -291,6 +291,11 @@ def main():
             "n_clusters": len(set(clu[focus])),
             "observed_effector_panel": round(float(obs_focus), 4),
             "random_mean": round(float(a2.mean()), 4),
+            # The median was quoted in section 2.3 for many versions with nothing
+            # producing it: this block stored mean, max and p95 only. The distribution
+            # is skewed enough that the mean alone misdescribes it, so the sentence
+            # wants the median rather than the median wanting removal.
+            "random_median": round(float(np.median(a2)), 4),
             "random_max": round(float(a2.max()), 4),
             "random_p95": round(float(np.percentile(a2, 95)), 4),
             "note": ("the effector panel should not stand out against arbitrary panels here, "

@@ -54,6 +54,41 @@ else
     ls data | head || true
 fi
 
+echo; echo "=== core: population definition and per-cell scores ==="
+echo "--- 02_snrna_core.py"
+"$PY" 02_snrna_core.py 2>&1 | tail -12
+
+echo; echo "=== the genome-wide passes and the cluster axis (expensive block) ==="
+# 41 does its own matrix pass over all 6,048 VMH nuclei across 20 draws, about
+# 21 min, and nothing downstream reads its output. It is here because its seven
+# declarations were previously unverified, which is how the cluster-level values
+# came to be quoted from the uncorrected pseudobulk file.
+for sc in 08_gene_scan.py 18_doublet_sensitivity.py 41_cluster_axis_corrected.py; do
+    echo "--- $sc"
+    "$PY" "$sc" 2>&1 | tail -12
+done
+
+echo; echo "=== conserved classes, discreteness, translatome ==="
+# 51 belongs with 04: it replaces the power grid 04 used to write, reads the stored
+# per-nucleus scores rather than the matrix, and is cheap. 04 now produces the
+# observed-data results only; the grid behind section 2.4 comes from 51.
+# 52 reads percell_scores.npz and cluster_axis_corrected.json, so it runs after
+# 02 and 41. It emits the reliability figures 2.2 states and the ceiling 2.5
+# argues from, including every derived value, computed from its own inputs.
+# 27 holds the random-panel controls 2.2 and 2.3 quote. It was never in this
+# wrapper, and the scope check could not say so: nothing declared from its
+# output, and that check derives its source list from declarations.
+# 29 produces the Esr1_1 identity figures section 2.9 quotes. Like 27 it was
+# outside this wrapper, and for the same reason the scope check could not say
+# so: nothing was declared from its output.
+for sc in 04_discreteness.py 27_correctness_checks.py 29_esr1_1_identity.py \
+          03_trpc5_depth.py 43_axis_distribution.py 51_power_grid.py \
+          52_axis_reliability.py \
+          53_effector_covariation.py 05_trap.py 10_conserved_classes.py; do
+    echo "--- $sc"
+    "$PY" "$sc" 2>&1 | tail -12
+done
+
 echo; echo "=== rerunning 22 to 25 ==="
 for sc in 22_nested_partition.py 23_class_nulls.py 24_mincluster_sensitivity.py \
           25_supplementary_tables.py; do
@@ -133,3 +168,13 @@ else:
     print(f"All {len(res)} checks pass: magnitudes, claims, ordering and structure.")
 sys.exit(1 if bad else 0)
 EOF
+
+echo; echo "=== does the verification reach every producer of a quoted number? ==="
+"$PY" 34_manifest.py --scope
+scope_status=$?
+if [ "$scope_status" -ne 0 ]; then
+    echo
+    echo "A declared number has no producer in this verification. Either extend this"
+    echo "file or remove the declaration; do not ship past this."
+    exit "$scope_status"
+fi

@@ -80,6 +80,57 @@ def main():
             "n_Lepr_replicates": 1,
         })
 
+    # ---------------------------------------------------------------- BH correction
+    # The family is the set of genes with a finite Welch p. A gene has no p when the test
+    # cannot be computed on three versus three replicates, which happens when both fractions
+    # are at or near zero throughout; that is a description of the cause, and the operative
+    # rule is finiteness of p.
+    def bh(pairs):
+        """pairs: [(key, p)] with finite p. Returns {key: q}."""
+        if not pairs:
+            return {}
+        pairs = sorted(pairs, key=lambda t: t[1])
+        m = len(pairs)
+        q, prev = {}, 1.0
+        for i in range(m - 1, -1, -1):
+            k, pv = pairs[i]
+            prev = min(prev, pv * m / (i + 1))
+            q[k] = round(min(prev, 1.0), 4)
+        return q
+
+    # The effector panel is HYPER and DEPOL only; MARKERS is not part of the
+    # family the manuscript corrects over.
+    panel_genes = set(C.PANELS["HYPER"]) | set(C.PANELS["DEPOL"])
+    finite = [(r["gene"], r["SF1_welch_p_unadjusted"]) for r in enr_rows
+              if r["SF1_welch_p_unadjusted"] is not None]
+    q_measured = bh(finite)
+    q_panel = bh([(g, pv) for g, pv in finite if g in panel_genes])
+
+    for r in enr_rows:
+        r["SF1_q_bh_panel"] = q_panel.get(r["gene"])
+        r["SF1_q_bh_measured"] = q_measured.get(r["gene"])
+
+    panel_tested = sorted(g for g, _ in finite if g in panel_genes)
+    panel_excluded = sorted(panel_genes - set(panel_tested))
+    trap_families = {
+        "rule": ("family members are genes with a finite Welch p; a gene has no p when "
+                 "the test cannot be computed on the three replicate pairs, which occurs "
+                 "when both fractions are at or near zero throughout"),
+        "n_panel_total": len(panel_genes),
+        "n_panel_tested": len(panel_tested),
+        "panel_tested": panel_tested,
+        "panel_excluded": panel_excluded,
+        "n_measured_tested": len(finite),
+    }
+    print(f">> BH family: {len(panel_tested)} of {len(panel_genes)} panel genes have a "
+          f"finite p; {len(finite)} genes measured overall")
+    print(f"   excluded from the panel family: {', '.join(panel_excluded)}")
+    for r in sorted((r for r in enr_rows if r.get("SF1_q_bh_panel") is not None),
+                    key=lambda r: r["SF1_q_bh_panel"])[:6]:
+        print(f"   {r['gene']:<9} log2 {r['SF1_log2_IP_over_Sup']:>6}  "
+              f"p {r['SF1_welch_p_unadjusted']:<8} q_panel {r['SF1_q_bh_panel']:<8} "
+              f"q_measured {r['SF1_q_bh_measured']}")
+
     for name, rows in (("trap_cpm.csv", cpm_rows), ("trap_enrichment.csv", enr_rows)):
         with open(os.path.join(C.RESULTS, name), "w", newline="") as fh:
             w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
@@ -92,6 +143,7 @@ def main():
     t5_sf1 = float(np.mean([gv(nr, "Trpc5", s) for s in C.TRAP_NR5A1["bead"]]))
     t5_lepr = gv(lp, "Trpc5", C.TRAP_LEPR["bead_pbs"])
     summary = {
+        "bh_families": trap_families,
         "fraction_assignment_source": "GSE172206_series_matrix.txt.gz, fraction characteristic",
         "trpc5_SF1_IP_cpm": round(t5_sf1, 1),
         "trpc5_Lepr_IP_PBS_cpm": round(t5_lepr, 1),

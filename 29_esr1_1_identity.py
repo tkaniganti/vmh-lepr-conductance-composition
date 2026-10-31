@@ -107,6 +107,21 @@ def main():
     out["test3_doublets"] = {"focus_pct": round(100*foc_d/max(len(all_focus),1), 2),
                              "others_pct": round(100*oth_d/max(len(oth_all),1), 2)}
 
+    # Emit the agreement RATIO, not only its two inputs. The manuscript quoted 85.4%
+    # computed in prose from focus_conserved_assignments.Esr1_1 over focus_n_total,
+    # which is the same shape as every other derived figure that turned out to have no
+    # key. Denominator is focus_n_total (288), the cluster AS ANNOTATED including the
+    # one nucleus the deposited Conserved_cluster column marks Doublets_2; cols is 287
+    # because that nucleus is dropped at the class assignment above. The claim is about
+    # the cluster as annotated, so 288 is the right denominator and the difference is
+    # by design rather than a discrepancy.
+    _match = out["test1_annotation"]["focus_conserved_assignments"].get(FOCUS, 0)
+    out["test1_annotation"]["focus_matching_pct"] = round(
+        100.0 * _match / max(out["test1_annotation"]["focus_n_total"], 1), 1)
+    print(f"   {_match}/{out['test1_annotation']['focus_n_total']} = "
+          f"{out['test1_annotation']['focus_matching_pct']}% carry the matching "
+          f"conserved assignment", flush=True)
+
     # ---------------------------------------------------------------- 2, 4, 5
     print("\n>> TEST 2: transcriptome-wide nearest conserved class", flush=True)
     keep = {r for r, t in rowsum.items() if t > 0}

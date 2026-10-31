@@ -112,11 +112,62 @@ def main():
     mk = {g: np.array([1.0 if expr.get(c, {}).get(name2row[g], 0.0) > 0 else 0.0
                        for c in cols]) for g in MARKERS if g in name2row}
 
+    # ------------------------------------------------- what the flagged nuclei are
+    # The double-positive gate retains a smaller fraction of flagged nuclei than of
+    # the rest, which is the opposite of what a multiplet should do. These numbers
+    # say why: they are deeper, and Lepr alone is depleted in them.
+    L = lepr_mask
+    fl, ot = L & dbl, L & ~dbl
+    md_f, md_o = float(np.median(depth[fl])), float(np.median(depth[ot]))
+    profile = {
+        "n_flagged": int(fl.sum()), "n_other": int(ot.sum()),
+        "median_depth_flagged": round(md_f), "median_depth_other": round(md_o),
+        "depth_ratio": round(md_f / md_o, 2),
+        "detection_pct_flagged": {g: round(100 * float(v[fl].mean()), 1)
+                                  for g, v in mk.items()},
+        "detection_pct_other": {g: round(100 * float(v[ot].mean()), 1)
+                                for g, v in mk.items()},
+        "note": ("flagged nuclei are deeper yet detect Lepr less often, so the "
+                 "double-positive gate depletes for them through Lepr rather "
+                 "than through capture depth"),
+    }
+    # Lepr detection outside the Lepr clusters, pooled across the other VMH classes,
+    # as the reference for a two-component mixture: what fraction of the flagged group
+    # resembles non-Lepr VMH neurons rather than the unflagged Lepr-cluster nuclei.
+    out_mask = ~lepr_mask
+    lepr_vec = mk.get("Lepr")
+    if lepr_vec is not None and out_mask.any():
+        r_out = 100 * float(lepr_vec[out_mask].mean())
+        r_fl = profile["detection_pct_flagged"]["Lepr"]
+        r_ot = profile["detection_pct_other"]["Lepr"]
+        share = (r_ot - r_fl) / (r_ot - r_out) if (r_ot - r_out) else None
+        profile["lepr_pct_outside_lepr_clusters"] = round(r_out, 1)
+        profile["n_outside_lepr_clusters"] = int(out_mask.sum())
+        profile["implied_non_lepr_share_of_flagged"] = (
+            round(share, 2) if share is not None else None)
+        profile["implied_non_lepr_n"] = (
+            int(round(share * profile["n_flagged"])) if share is not None else None)
+        profile["mixture_note"] = (
+            "two-component solve using the pooled rate outside the Lepr clusters as one "
+            "endpoint and the unflagged Lepr-cluster rate as the other; the flagged group "
+            "is deeper than either, which inflates detection, so the share is a floor")
+        print(f">> Lepr outside the Lepr clusters: {r_out:.1f}% of "
+              f"{int(out_mask.sum())} nuclei (pooled across the other VMH classes)")
+        print(f"   mixture solve: non-Lepr share of flagged "
+              f"{100 * share:.0f}% (~{round(share * profile['n_flagged']):.0f} nuclei), a floor")
+
+    print(f">> flagged {profile['n_flagged']} vs other {profile['n_other']}: "
+          f"median depth {md_f:.0f} vs {md_o:.0f} (ratio {profile['depth_ratio']})")
+    for g in mk:
+        print(f"   {g:<9} flagged {profile['detection_pct_flagged'][g]:>5}%   "
+              f"other {profile['detection_pct_other'][g]:>5}%")
+
     # ---------------------------------------------------------------- both versions
     out = {"n_vmh": len(cols), "n_lepr": int(lepr_mask.sum()),
            "n_lepr_doublet_flagged": int((lepr_mask & dbl).sum()),
            "pct_lepr_doublet_flagged": round(100 * float((lepr_mask & dbl).mean() /
-                                                         lepr_mask.mean()), 1)}
+                                                         lepr_mask.mean()), 1),
+           "doublet_profile": profile}
 
     for label, keep in (("with_doublets", np.ones(len(cols), bool)),
                         ("without_doublets", ~dbl)):

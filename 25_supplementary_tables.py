@@ -234,6 +234,82 @@ def main():
           "the VMH comparison because the sample is smaller.",
           ["Quantity", "Value", "Note"], rows)
 
+    # ---------------------------------------------------------------- S8
+    d = load("doublet_sensitivity.json")
+    pr = (d or {}).get("doublet_profile") or {}
+    rows = []
+    if pr:
+        rows = [["Nuclei (n)", pr["n_flagged"], pr["n_other"]],
+                ["Median depth (UMI)", pr["median_depth_flagged"], pr["median_depth_other"]]]
+        for g in ("Nr5a1", "Lepr", "Slc17a6"):
+            rows.append([f"{g} detected (%)",
+                         pr["detection_pct_flagged"].get(g),
+                         pr["detection_pct_other"].get(g)])
+        if "lepr_pct_outside_lepr_clusters" in pr:
+            rows += [["Lepr detected outside the Lepr clusters (%)",
+                      pr["lepr_pct_outside_lepr_clusters"],
+                      f"pooled across {pr['n_outside_lepr_clusters']} nuclei"],
+                     ["Implied non-Lepr share of flagged",
+                      pr["implied_non_lepr_share_of_flagged"],
+                      f"~{pr['implied_non_lepr_n']} nuclei, a floor"]]
+    sheet(wb, "S8 doublet profile",
+          "Supplementary Table S8. What the doublet-flagged nuclei are",
+          "Doublet-flagged Lepr-cluster nuclei against the rest. Flagged nuclei are "
+          "deeper by median count yet detect Lepr less often, while Nr5a1 is unchanged, "
+          "which is why the per-cell double-positive gate depletes rather than enriches "
+          "for them.",
+          ["Quantity", "Doublet-flagged", "Other Lepr-cluster"], rows)
+
+    # ---------------------------------------------------------------- S9
+    VD = os.path.join(cfg.RESULTS, "pde3b_variants")
+
+    def _v(kind, tag):
+        fp = os.path.join(VD, f"{kind}_{tag}.json")
+        return json.load(open(fp)) if os.path.exists(fp) else None
+
+    nw, nx = _v("nested", "with_pde3b"), _v("nested", "without_pde3b")
+    cw, cx = _v("class_nulls", "with_pde3b"), _v("class_nulls", "without_pde3b")
+    rows = []
+    if nw and nx and cw and cx:
+        def dig(d, *path):
+            for k in path:
+                d = d[k]
+            return d
+        rows.append(["Class component (%)",
+                     dig(nw, "nested_all_vmh", "pct_class", "mean"),
+                     dig(nx, "nested_all_vmh", "pct_class", "mean")])
+        rows.append(["Cluster within class (%)",
+                     dig(nw, "nested_all_vmh", "pct_cluster_in_class", "mean"),
+                     dig(nx, "nested_all_vmh", "pct_cluster_in_class", "mean")])
+        for cl in sorted(cw["by_class"]):
+            rows.append([f"{cl} excess over null (%)",
+                         cw["by_class"][cl]["excess_over_null"],
+                         cx["by_class"][cl]["excess_over_null"]])
+        for cl in sorted(cw["by_class"]):
+            rows.append([f"{cl} observed (%)",
+                         cw["by_class"][cl]["observed_pct"]["mean"],
+                         cx["by_class"][cl]["observed_pct"]["mean"]])
+            rows.append([f"{cl} null 95th percentile (%)",
+                         cw["by_class"][cl]["null_pct"]["p95"],
+                         cx["by_class"][cl]["null_pct"]["p95"]])
+            rows.append([f"{cl} draws reaching zero (of 20)",
+                         cw["by_class"][cl]["observed_pct"].get("n_draws_at_zero"),
+                         cx["by_class"][cl]["observed_pct"].get("n_draws_at_zero")])
+    else:
+        rows.append(["results/pde3b_variants/ not found",
+                     "run run_pde3b_real.slurm", ""])
+    sheet(wb, "S9 Pde3b sensitivity",
+          "Supplementary Table S9. Variance partition and per-class excesses with "
+          "and without Pde3b in the hyperpolarizing panel",
+          "Pde3b is a signaling effector, not a conductance, and has no established sign "
+          "in this population: it has been implicated in leptin action on both the "
+          "depolarized POMC population and the hyperpolarized NPY population, so its "
+          "assignment to the hyperpolarizing panel is a convention. Both columns come from "
+          "scripts 22 and 23 run unmodified, with config.py edited between passes and "
+          "restored afterwards; the with-Pde3b column reproduces every value reported in "
+          "the manuscript. The leptin-receptor class falls inside its own null in both.",
+          ["Quantity", "With Pde3b", "Without Pde3b"], rows)
+
     out = os.path.join(R, "Supplementary_Tables.xlsx")
     wb.save(out)
     # Mirror into supplementary/ so the copy that ships in the release cannot drift

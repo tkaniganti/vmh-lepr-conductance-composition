@@ -138,7 +138,19 @@ def main():
                                          "depth_coefficient": round(depth_coef, 3)},
         "downsampling": {"target_umi": target, "chi2": round(float(ds_chi2), 1),
                          "p": float(ds_p), "dof": int(ds_dof),
-                         "pct_detected_raw": raw_pct, "pct_detected_downsampled": ds_pct},
+                         "pct_detected_raw": raw_pct, "pct_detected_downsampled": ds_pct,
+                         # Emit the RANGE, not only the per-cluster dict. Section 2.6
+                         # quotes "from 30.1% to 68.0%", which was a min and max read
+                         # off this dict in prose. Declaring two of its members would
+                         # pass while the sentence became false: a later run that
+                         # moved Lepr_5 from 30.2 to 30.0 would leave 30.1 stored and
+                         # still present, with the quoted floor wrong. The claim is a
+                         # range, so the range is what needs a key. Fifth instance of
+                         # prose arithmetic over stored values found on 30 Oct.
+                         "pct_detected_raw_min": round(min(raw_pct.values()), 1),
+                         "pct_detected_raw_max": round(max(raw_pct.values()), 1),
+                         "pct_detected_raw_min_cluster": min(raw_pct, key=raw_pct.get),
+                         "pct_detected_raw_max_cluster": max(raw_pct, key=raw_pct.get)},
         "empirical_null": {"n_genes": len(null_rec),
                            "median_LR": float(np.nanmedian(null_lr)),
                            "p90_LR": float(np.nanpercentile(null_lr, 90)),

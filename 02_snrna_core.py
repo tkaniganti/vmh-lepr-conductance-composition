@@ -57,6 +57,15 @@ def main():
         if float(v) > 0:
             pos[row2gene[int(r)]].add(int(c))
 
+    # Pre-filter label counts, so the JSON holds both sides of the barcode filter.
+    # Three fields previously named "labelled" held post-filter values: n_vmh_labelled,
+    # n_neurons and n_lepr_labelled. Anyone checking the manuscript's statement about
+    # absent barcodes would have found a plausible number under a plausible name.
+    n_neuron_labelled = sum(1 for m in meta.values()
+                            if (m.get("Neuron_cluster") or "").strip())
+    n_lepr_labelled_meta = sum(1 for m in meta.values()
+                               if (m.get("VMH_cluster") or "").strip().startswith("Lepr"))
+
     all_neuron_cols = set()
     for bc, m in meta.items():
         if (m.get("Neuron_cluster") or "").strip() and bc in bc2col:
@@ -73,10 +82,14 @@ def main():
     det = {
         "n_total_cells": len(meta),
         "n_neurons": len(all_neuron_cols),
-        "n_vmh_labelled": len(vmh_cols),
+        "n_neurons_labelled": n_neuron_labelled,
+        "n_neurons_not_in_barcodes": n_neuron_labelled - len(all_neuron_cols),
+        "n_vmh_labelled": n_lab,
         "n_vmh_with_counts": len(cols),
         "n_vmh_labelled_not_in_barcodes": n_unmatched,
-        "n_lepr_labelled": len(lepr_cols),
+        "n_lepr_with_counts": len(lepr_cols),
+        "n_lepr_labelled": n_lepr_labelled_meta,
+        "n_lepr_not_in_barcodes": n_lepr_labelled_meta - len(lepr_cols),
         "vmh_detect": {g: rate(vmh_cols, g) for g in marker_rows},
         "lepr_detect": {g: rate(lepr_cols, g) for g in marker_rows},
         "naive_gate": {

@@ -78,38 +78,32 @@ def main():
     sd = float(np.std(hd))
     rng = np.random.default_rng(C.RANDOM_SEED)
     power = []
-    for eff in EFFECT_SIZES:
-        eps_rec, k_rec, dip_rec = [], [], []
-        for _ in range(N_SIM):
-            idx = rng.permutation(hd.size)
-            half = idx[: hd.size // 2]
-            sim = hd.copy()
-            sim[half] += eff * sd
-            fake = np.array(["A"] * hd.size, dtype=object)
-            fake[half] = "B"
-            Hs, _ = kruskal(sim[fake == "A"], sim[fake == "B"])
-            eps_rec.append(V.eps2_from_kruskal(float(Hs), 2, sim.size))
-            _, b = fit_mixture(sim, kmax=3, seed=int(rng.integers(1e6)))
-            k_rec.append(b["k"])
-            if HAVE_DIP:
-                dip_rec.append(diptest.diptest(sim)[1])
-        power.append({
-            "effect_sd_units": eff,
-            "eps2_median": round(float(np.median(eps_rec)), 4),
-            "pct_sims_bic_picks_k_ge_2": round(100 * float(np.mean(np.array(k_rec) >= 2)), 1),
-            "pct_sims_dip_rejects_unimodal": (
-                round(100 * float(np.mean(np.array(dip_rec) < 0.05)), 1) if HAVE_DIP else None),
-        })
-        print(f"   shift {eff} SD -> eps2 {power[-1]['eps2_median']:.3f}, "
-              f"BIC k>=2 in {power[-1]['pct_sims_bic_picks_k_ge_2']}% of sims")
-    res["power_simulation"] = {"n_sim_per_level": N_SIM, "levels": power}
-
+    # ---------------------------------------------------------------- power grid
+    # RETIRED 29 Oct 2026. This loop simulated an exactly balanced two-component split
+    # (idx[:hd.size // 2]) and scored recovery by BIC, and section 2.4 quoted its 2.0 SD
+    # figure as the bound on discreteness. Two problems, both in the manuscript's
+    # reviewer pass:
+    #
+    #   The configuration was wrong. Sohn et al. report 14 of 80 depolarized and 14
+    #   hyperpolarized, which is two minority groups either side of a dominant centre,
+    #   not a balanced split. That configuration is not recovered at ANY separation,
+    #   because opposite displacements broaden the marginal density without moving its
+    #   centre and mixture selection fits a broadened density as one component.
+    #
+    #   The stored dip column was 0.0 at every level and was read as low power. It is
+    #   not: a 50/50 equal-variance mixture is unimodal below 2 sigma, so the dip test
+    #   was answering its own question correctly.
+    #
+    # 51_power_grid.py replaces this with six configurations and both criteria. Leaving
+    # the old grid here would put two objects in results/ for one quantity, and a
+    # verification run would reproduce and certify a number the manuscript no longer
+    # makes. The observed-data results above are unaffected and still current.
     res["interpretation"] = (
-        "If BIC selects k = 1 and the dip test does not reject unimodality on the observed "
-        "H-D score, while the simulation shows that a split of around X SD would have been "
-        "detected, the graded claim is supported at the resolution of this measurement and "
-        "should be stated with that bound. If BIC selects k >= 2, the graded framing must be "
-        "revised rather than defended.")
+        "Observed-data results only. The power grid that used to live here is retired; "
+        "see 51_power_grid.py and results/power_grid.json. What BIC and the dip test "
+        "report on the observed score does not on its own bound the subpopulation "
+        "proposal, because the configuration that proposal describes is not recoverable "
+        "by either criterion at any separation (section 2.4).")
 
     json.dump(res, open(os.path.join(C.RESULTS, "discreteness.json"), "w"), indent=2)
     print("\nWritten to", os.path.join(C.RESULTS, "discreteness.json"))
