@@ -99,26 +99,23 @@ def check_a(name2row, bc2col, cols, rng):
 
 
 # ----------------------------------------------------------------- shared
-def nested(y, cls, clu):
-    df = pd.DataFrame({"y": np.asarray(y, float), "A": np.asarray(cls),
-                       "B": [f"{a}|{b}" for a, b in zip(cls, clu)]})
-    n, a, b = len(df), df.A.nunique(), df.B.nunique()
-    if a < 2 or b <= a:
-        return None
-    grand = df.y.mean()
-    ssa = sum(len(g) * (g.y.mean() - grand) ** 2 for _, g in df.groupby("A"))
-    ssb = sum(len(g) * (g.y.mean() - df.loc[df.A == g.A.iloc[0], "y"].mean()) ** 2
-              for _, g in df.groupby("B"))
-    sse = sum(((g.y - g.y.mean()) ** 2).sum() for _, g in df.groupby("B"))
-    msa, msb, mse = ssa / (a - 1), ssb / (b - a), sse / (n - b)
-    nb = df.groupby("B").size().to_numpy(float)
-    na = df.groupby("A").size().to_numpy(float)
-    n0b = (n - (nb ** 2).sum() / n) / (b - a)
-    n0a = (n - (na ** 2).sum() / n) / (a - 1)
-    s2b = max((msb - mse) / n0b, 0.0)
-    s2a = max((msa - msb) / n0a, 0.0)
-    tot = s2a + s2b + mse
-    return {"pct_class": 100 * s2a / tot, "pct_cluster_in_class": 100 * s2b / tot}
+# nested() is IMPORTED, not redefined. Until 2 Nov 2026 this file carried its
+# own copy, and when the expected-mean-square coefficients in 22 were corrected
+# that copy kept the old ones: the lower-level divisor formed with the grand
+# total rather than each class's own, and an upper level that subtracted MSB
+# with the wrong coefficient. Three quantities here were computed with it, the
+# observed class component, the random-panel distribution and the full label
+# shuffle, so a correction in one file silently left the other reporting
+# against a stale null. One definition, imported.
+import importlib.util as _ilu
+import os as _os
+
+_spec = _ilu.spec_from_file_location(
+    "_np22", _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                           "22_nested_partition.py"))
+_np22 = _ilu.module_from_spec(_spec)
+_spec.loader.exec_module(_np22)
+nested = _np22.nested
 
 
 def main():

@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+# SUPERSEDED, RETAINED FOR PROVENANCE. Do not use, and do not read the formula
+# below as the one the manuscript reports. Line 54 divides by n/k, the mean group
+# size of a BALANCED design. The correct unbalanced one-way coefficient is
+# (N - sum n_i^2 / N) / (k - 1), which 22_nested_partition.py and 23_class_nulls.py
+# use. This file is superseded by 22, as the README says; the note is here because
+# someone grepping the archive for the estimator would otherwise find this copy.
 """
 21_variance_partition.py - nested variance partition by components of variance.
 

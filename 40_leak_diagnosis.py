@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+# SUPERSEDED IN PART, RETAINED FOR PROVENANCE. The 3.57% and 2.69% in the
+# docstring below are pre-3-Nov-2026 values from the uncorrected estimator; the
+# corrected figures are 4.73% and 1.63%. The diagnosis that part C draws from them
+# is superseded: the apparent class-level leak was the expected-mean-square
+# coefficients, not the design's imbalance. See 22_nested_partition.py.
 """
 40_leak_diagnosis.py - three questions the leak result leaves open.
 

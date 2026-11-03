@@ -144,6 +144,21 @@ def declared_values():
     return vals
 
 
+def declared_count():
+    """Number of DECLARATION ENTRIES in 34_manifest.py.
+
+    Not len(declared_values()): that expands every declared value into all its
+    shorter roundings and currently holds 282 members, where the manifest has 160
+    entries. The availability statement states the entry count.
+    """
+    src = open("34_manifest.py").read()
+    # the exponent part matters: one declaration is -5.2e-05, and a pattern that
+    # stops at [\d.]+ counts 165 where the manifest counts 166. A self-count that
+    # disagrees with the thing it counts is worse than no self-count.
+    return len(re.findall(
+        r'\(\s*"(?:[^"\\]|\\.)*"\s*,\s*[−-]?[\d.]+(?:[eE][+-]?\d+)?\s*,', src))
+
+
 def main():
     if len(sys.argv) < 2:
         print(__doc__)
@@ -244,6 +259,30 @@ def main():
             i = line.find(raw)
             a, b = max(0, i - 55), min(len(line), i + len(raw) + 55)
             print(f"  {raw:>12}   ...{line[a:b]}...")
+
+    # The two counts in the availability statement describe this apparatus rather
+    # than the data, which is why no other check can verify them: 34_manifest.py
+    # never opens the manuscript, and 44 compares declared VALUES, not counts.
+    # This script knows both. They went stale once, reading 136 and 105 after the
+    # counts had moved to 160 and 115, and nothing caught it.
+    n_decl, n_undecl = declared_count(), len(seen)
+    print("\n  AVAILABILITY STATEMENT SELF-COUNT")
+    stale = False
+    for label, pat, actual in (
+            ("declarations", r"manifest declaring (\d+) of the values", n_decl),
+            ("undeclared", r"carry no declaration, currently (\d+)", n_undecl)):
+        m = re.search(pat, text)
+        if m is None:
+            print(f"    {label:<14} not stated in the manuscript")
+            continue
+        stated = int(m.group(1))
+        ok = stated == actual
+        stale = stale or not ok
+        print(f"    {label:<14} states {stated}, actual {actual}"
+              f"{'' if ok else '   <- STALE'}")
+    if stale:
+        print("    A wrong count there misdescribes the archive to a reader, which")
+        print("    is the same class of error as a wrong value in Results.")
 
     print("\n  The list above is a backlog and can stay one. The load-bearing set is not:")
     print("  a number in a title, the abstract or a topic sentence is carrying a claim.")

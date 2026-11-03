@@ -82,7 +82,8 @@ echo; echo "=== conserved classes, discreteness, translatome ==="
 # outside this wrapper, and for the same reason the scope check could not say
 # so: nothing was declared from its output.
 for sc in 04_discreteness.py 27_correctness_checks.py 29_esr1_1_identity.py \
-          03_trpc5_depth.py 43_axis_distribution.py 51_power_grid.py \
+          03_trpc5_depth.py 43_axis_distribution.py 57_contrast_specificity.py 58_class_excess_specificity.py \
+          51_power_grid.py \
           52_axis_reliability.py \
           53_effector_covariation.py 05_trap.py 10_conserved_classes.py; do
     echo "--- $sc"

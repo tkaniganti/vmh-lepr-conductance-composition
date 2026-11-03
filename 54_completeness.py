@@ -92,6 +92,38 @@ def main():
     if not (produced - cited) and not (cited - produced):
         print("  every produced table is cited and every cited table is produced")
 
+    # ---- first-mention order.
+    # Reported rather than enumerated by hand. A drafting note in the manuscript once
+    # listed this order from memory: it named seven tables, omitted S5 and S9, and
+    # placed S3 in the Discussion when its first mention is in section 2.8. That is the
+    # same blind spot as an uncited table, one level up: a list written by a person
+    # cannot find what the person left out of it.
+    #
+    # Out-of-sequence numbering is untidy rather than wrong, and no claim depends on
+    # it, so this reports and does not fail the run. Renumbering touches every sheet
+    # name, every citation and the workbook, and is work for submission rather than
+    # for a preprint.
+    first_at = {}
+    for m in re.finditer(r"\bS(\d+)\b", body):
+        t = f"S{m.group(1)}"
+        if t in produced and t not in first_at:
+            first_at[t] = m.start()
+    order = [t for t, _ in sorted(first_at.items(), key=lambda kv: kv[1])]
+    if order:
+        print(f"\n  first-mention order: {', '.join(order)}")
+        expected = sorted(order, key=lambda t: int(t[1:]))
+        if order != expected:
+            out_of_place = [t for t, e in zip(order, expected) if t != e]
+            print(f"  NOT IN NUMERICAL SEQUENCE. Out of place: "
+                  f"{', '.join(out_of_place)}")
+            print("  Reported, not failed: renumbering touches every sheet name, every")
+            print("  citation and the workbook, and no claim depends on the order.")
+        else:
+            print("  tables are numbered in order of first mention")
+        missing = sorted(produced - set(order), key=lambda t: int(t[1:]))
+        if missing:
+            print(f"  produced but never mentioned in the body: {', '.join(missing)}")
+
     # ---- 2 and 3. figure panels
     print(f"\n{'=' * 70}\n2. FIGURE PANELS\n{'=' * 70}")
     drawn = {}

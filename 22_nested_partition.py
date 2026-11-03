@@ -70,28 +70,166 @@ def one_way(y, grp):
     return {"pct": 100 * sb / (sb + msw), "eta2": ssb / (ssb + ssw), "k": k, "n": n}
 
 
-def nested(y, cls, clu):
-    """Two-level nested components: class, cluster within class, residual."""
-    df = pd.DataFrame({"y": np.asarray(y, float), "A": np.asarray(cls),
-                       "B": [f"{a}|{b}" for a, b in zip(cls, clu)]})
+def _ems_coefficients(df):
+    """c1, c2, c3 for an UNBALANCED two-level nested design.
+
+    E(MSE)=s2e, E(MSB(A))=s2e+c1*s2B, E(MSA)=s2e+c2*s2B+c3*s2A
+    (Sokal & Rohlf, Biometry, Box 10.6; Lynch & Walsh 1998, Eq. 18.32).
+    """
     n = len(df)
     a = df.A.nunique()
     b = df.B.nunique()
+    t_within = t_grand = t_cls = 0.0
+    for _, gi in df.groupby("A"):
+        n_i = len(gi)
+        t_cls += n_i ** 2 / n
+        for _, gij in gi.groupby("B"):
+            n_ij = len(gij)
+            t_within += n_ij ** 2 / n_i
+            t_grand += n_ij ** 2 / n
+    return ((n - t_within) / (b - a),
+            (t_within - t_grand) / (a - 1),
+            (n - t_cls) / (a - 1), a, b, n)
+
+
+def nested(y, cls, clu):
+    """Two-level nested components: class, cluster within class, residual.
+
+    BOTH COEFFICIENTS WERE WRONG BEFORE 2 NOV 2026 and are fixed here.
+
+    Lower level: n0b divided each squared cell size by the GRAND total rather
+    than by that cell's own class total, so the divisor was too large and
+    pct_cluster_in_class was understated.
+
+    Upper level: s2a was (MSA - MSB) / n0a, which assumes c2 == c1. That holds
+    only under balance; here they differ by close to an order of magnitude, so
+    cluster variance leaked into the class term and inflated it. n0a itself was
+    right and equals c3.
+
+    Why the balanced control in 38_upper_level_recovery.py passed: under balance
+    c2 DOES equal c1, so a clean balanced control is exactly what a formula valid
+    only under balance produces. It could not have failed. The Limitations
+    paragraph read that as the imbalance being unfixable; the estimator was wrong.
+    nested_positive_control() below therefore runs on the REAL design.
+    """
+    df = pd.DataFrame({"y": np.asarray(y, float), "A": np.asarray(cls),
+                       "B": [f"{a}|{b}" for a, b in zip(cls, clu)]})
+    c1, c2, c3, a, b, n = _ems_coefficients(df)
     grand = df.y.mean()
     ssa = sum(len(g) * (g.y.mean() - grand) ** 2 for _, g in df.groupby("A"))
     ssb = sum(len(g) * (g.y.mean() - df.loc[df.A == g.A.iloc[0], "y"].mean()) ** 2
               for _, g in df.groupby("B"))
     sse = sum(((g.y - g.y.mean()) ** 2).sum() for _, g in df.groupby("B"))
     msa, msb, mse = ssa / (a - 1), ssb / (b - a), sse / (n - b)
-    nb = df.groupby("B").size().to_numpy(float)
-    n0b = (n - (nb ** 2).sum() / n) / (b - a)
-    na = df.groupby("A").size().to_numpy(float)
-    n0a = (n - (na ** 2).sum() / n) / (a - 1)
-    s2b = max((msb - mse) / n0b, 0.0)
-    s2a = max((msa - msb) / n0a, 0.0)
+    s2b_raw = (msb - mse) / c1
+    s2b = max(s2b_raw, 0.0)
+    s2a_raw = (msa - mse - c2 * s2b) / c3
+    s2a = max(s2a_raw, 0.0)
     tot = s2a + s2b + mse
     return {"pct_class": 100 * s2a / tot, "pct_cluster_in_class": 100 * s2b / tot,
-            "pct_residual": 100 * mse / tot, "n_classes": a, "n_class_by_cluster": b, "n": n}
+            "pct_residual": 100 * mse / tot, "n_classes": a,
+            "n_class_by_cluster": b, "n": n,
+            "ems_c1": round(c1, 3), "ems_c2": round(c2, 3), "ems_c3": round(c3, 3),
+            "s2a_before_truncation": round(s2a_raw, 6),
+            "s2b_before_truncation": round(s2b_raw, 6)}
+
+
+def class_component_null(y_draws, cls, clu, seed=0, n_perm=200):
+    """Chance expectation for the class component.
+
+    Every other component in this manuscript is reported as a percentile of its
+    own null and the Methods say so; the class component was withheld rather
+    than tested, so it had none. Reporting it against zero while everything else
+    is reported against a null is the asymmetry that made the transcript scan
+    untenable.
+
+    Construction: reassign whole CELLS to classes at random, preserving the
+    number of cells per class and every cell's size. That breaks the class
+    grouping while leaving the nested design, the cell sizes and the
+    within-cell structure exactly as observed, so the null asks whether cells
+    group by class more than an arbitrary grouping of the same cells would.
+    """
+    cls = np.asarray(cls)
+    clu = np.asarray(clu)
+    cell = np.array([f"{a}|{b}" for a, b in zip(cls, clu)])
+    cells = sorted(set(cell))
+    cell_class = {c: c.split("|")[0] for c in cells}
+    labels = [cell_class[c] for c in cells]
+
+    rng = np.random.default_rng(seed)
+    obs, null = [], []
+    for y in y_draws:
+        obs.append(nested(y, cls, clu)["pct_class"])
+    for _ in range(n_perm):
+        perm = list(rng.permutation(labels))
+        remap = dict(zip(cells, perm))
+        # cell identity is carried in clu so the permuted classes cannot collide
+        null.append(nested(y_draws[0], np.array([remap[c] for c in cell]),
+                           cell)["pct_class"])
+    null = np.array(null)
+    o = float(np.mean(obs))
+    return {"observed_pct_class_mean": round(o, 4),
+            "n_draws": len(y_draws), "n_permutations": int(n_perm),
+            "null_mean": round(float(null.mean()), 4),
+            "null_p95": round(float(np.percentile(null, 95)), 4),
+            "null_max": round(float(null.max()), 4),
+            "percentile_of_null": round(float((null < o).mean() * 100), 1),
+            "exceeds_null_p95": bool(o > np.percentile(null, 95)),
+            "note": ("whole cells reassigned to classes at random, preserving "
+                     "cells per class and every cell size; the observed value is "
+                     "the mean over control-gene draws and the null is built on "
+                     "the first draw")}
+
+
+def nested_positive_control(cls, clu, seed=0, reps=300):
+    """Inject KNOWN components into the REAL design and check recovery.
+
+    Untruncated, so max(., 0) cannot mask an upward bias at zero injection.
+    """
+    cls = np.asarray(cls)
+    clu = np.asarray(clu)
+    df = pd.DataFrame({"A": cls, "B": [f"{x}|{z}" for x, z in zip(cls, clu)]})
+    c1, c2, c3, a, b, n = _ems_coefficients(df)
+    out = {"design": {"n": int(n), "n_classes": int(a), "n_cells": int(b),
+                      "c1": round(c1, 3), "c2": round(c2, 3), "c3": round(c3, 3)},
+           "levels": []}
+    cells = list(df.B)
+    for true_a, true_b in ((0.0, 0.04), (0.0289, 0.04), (0.0, 0.12)):
+        ga, gb = [], []
+        for rep in range(reps):
+            r = np.random.default_rng(seed + rep)
+            ae = {i: r.normal(0, np.sqrt(true_a)) for i in set(cls)}
+            be = {j: r.normal(0, np.sqrt(true_b)) for j in set(cells)}
+            yy = (np.array([ae[i] for i in cls]) + np.array([be[j] for j in cells])
+                  + r.normal(0, 1.0, n))
+            d2 = df.assign(y=yy)
+            grand = yy.mean()
+            ssa = sum(len(g) * (g.y.mean() - grand) ** 2 for _, g in d2.groupby("A"))
+            ssb = sum(len(g) * (g.y.mean()
+                                - d2.loc[d2.A == g.A.iloc[0], "y"].mean()) ** 2
+                      for _, g in d2.groupby("B"))
+            sse = sum(((g.y - g.y.mean()) ** 2).sum() for _, g in d2.groupby("B"))
+            msa, msb, mse = ssa / (a - 1), ssb / (b - a), sse / (n - b)
+            s2b = (msb - mse) / c1
+            gb.append(s2b)
+            ga.append((msa - mse - c2 * s2b) / c3)
+        # Report the standard error beside the mean. At 30 reps all three
+        # non-zero rows came back 6 to 8% high, which is within noise per row
+        # but is three of three in one direction. With the class component now
+        # reportable rather than withheld, a residual bias of that size matters,
+        # so the mean needs its own uncertainty attached.
+        out["levels"].append({"injected_s2A": true_a, "injected_s2B": true_b,
+                              "recovered_s2A": round(float(np.mean(ga)), 5),
+                              "recovered_s2A_se": round(
+                                  float(np.std(ga, ddof=1) / np.sqrt(len(ga))), 5),
+                              "recovered_s2B": round(float(np.mean(gb)), 5),
+                              "recovered_s2B_se": round(
+                                  float(np.std(gb, ddof=1) / np.sqrt(len(gb))), 5)})
+    out["passes"] = bool(all(
+        abs(l["recovered_s2A"] - l["injected_s2A"]) < 0.01
+        and abs(l["recovered_s2B"] - l["injected_s2B"]) < 0.02
+        for l in out["levels"]))
+    return out
 
 
 def main():
@@ -136,9 +274,11 @@ def main():
             expr[c][int(r)] = float(v)
 
     nested_recs, focus_recs, per_class = [], [], defaultdict(list)
+    y_draws = []   # kept for class_component_null, which needs the scores themselves
     for seed, (pr, cr) in zip(seeds, seed_sets):
         y = V.module_scores(expr, cols, colsum, pr, cr)["HminusD"]
         y = y - np.polyval(np.polyfit(ld, y, 1), ld)
+        y_draws.append(y)
         nested_recs.append(nested(y, cls, clu))
         focus_recs.append(one_way(y[focus], clu[focus]))
         for cl in sorted(set(cls.tolist())):
@@ -203,12 +343,21 @@ def main():
                                   "note": "detected with fewer nuclei than the focus set"}}
 
     out = {"n_nuclei": len(cols),
-           "estimator": ("unbalanced nested components of variance; sigma2_B = "
-                         "(MSB(A) - MSE)/n0_B, sigma2_A = (MSA - MSB(A))/n0_A, both "
-                         "truncated at zero and reported as shares of the total. These are "
-                         "bias-corrected, so estimates can land exactly on zero; raw "
-                         "eta-squared is reported alongside but is not used in the text "
-                         "because it rises with group count under the null."),
+           "estimator": ("unbalanced nested components of variance. "
+                         "sigma2_B = (MSB(A) - MSE)/c1 and "
+                         "sigma2_A = (MSA - MSE - c2*sigma2_B)/c3, with the "
+                         "expected-mean-square coefficients computed for this design "
+                         "(Sokal & Rohlf Box 10.6; Lynch & Walsh Eq. 18.32). Both are "
+                         "truncated at zero and reported as shares of the total, so "
+                         "estimates can land exactly on zero; raw eta-squared is "
+                         "reported alongside but is not used in the text because it "
+                         "rises with group count under the null. BEFORE 2 Nov 2026 "
+                         "this used sigma2_A = (MSA - MSB(A))/n0_A, valid only under "
+                         "balance, and a lower-level divisor formed with the grand "
+                         "total rather than each class's own; the class term was "
+                         "inflated and the cluster-within-class term understated."),
+           "estimator_positive_control": nested_positive_control(cls, clu),
+           "class_component_null": class_component_null(y_draws, cls, clu),
            "nested_all_vmh": {k: summ([r[k] for r in nested_recs])
                               for k in ("pct_class", "pct_cluster_in_class", "pct_residual")},
            "nested_counts": {k: nested_recs[0][k]

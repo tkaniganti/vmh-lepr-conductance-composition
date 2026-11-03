@@ -2,7 +2,7 @@
 
 Code accompanying *Cell identity does not resolve bidirectional leptin responses in VMH neurons: what single-nucleus data can and cannot measure* (Kaniganti, preprint).
 
-Every reported statistic regenerates from the public accessions below. No bench data are
+Every value the manuscript reports that carries a declaration in the manifest names the script and key that produce it. An extracted copy of this archive, with no data present, reproduces the declared and undeclared lists. Regenerating the values themselves requires the public accessions below and the compute described in Methods. No bench data are
 used; all inputs are deposited datasets from other laboratories.
 
 ## Data
@@ -109,7 +109,7 @@ provenance but are superseded by `22` and `23`.
 | `22_nested_partition.py` | proper two-level nested decomposition, with the detectability bound from injected cluster effects | `nested_partition.json` |
 | `23_class_nulls.py` | per-class chance expectations, nuclei per cluster, leave-one-cluster-out, class-by-cluster membership | `class_nulls.json`, `class_membership.csv` |
 | `24_mincluster_sensitivity.py` | do the per-class excesses survive excluding small clusters | `mincluster_sensitivity.json` |
-| `25_supplementary_tables.py` | builds the seven supplementary tables from the files above | `Supplementary_Tables.xlsx` |
+| `25_supplementary_tables.py` | builds the nine supplementary tables from the files above | `Supplementary_Tables.xlsx` |
 
 Scripts 22 to 24 need a compute node and a few minutes each; slurm wrappers are provided.
 `25` runs on a login node and needs `openpyxl`.

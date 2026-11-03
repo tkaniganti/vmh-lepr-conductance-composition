@@ -45,6 +45,18 @@ def sections(text):
             for m in re.finditer(r"^#{1,4}\s+(.+)$", text, re.M)]
 
 
+# A scoped whitelist for "manifest" inside Data and code availability was added and
+# then removed on 3 Nov 2026. It was written to silence a hit in Methods, but that
+# hit was in Methods rather than in the availability statement, so the whitelist
+# could never have suppressed it; the Methods sentence was reworded instead. The
+# statement's own wording is "carries a manifest", which this list's "the manifest"
+# entry does not match, so the whitelist had no case to act on in either place.
+# Dead code with a comment describing behaviour it does not produce is worse than
+# no code: it reads as a tested exception. If a future draft writes "the manifest"
+# in that section, add the scope rule back WITH a fixture case that proves it still
+# fires elsewhere.
+
+
 def main():
     if len(sys.argv) < 2:
         sys.exit("usage: 35_leak_check.py manuscript.md")

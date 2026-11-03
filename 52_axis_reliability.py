@@ -239,17 +239,68 @@ def main():
     import vmhlib as _V
 
     # between-cluster and within-cluster variance, across the 24 VMH clusters
-    cax = _j.load(open(os.path.join(cfg.RESULTS, "cluster_axis_corrected.json")))
-    bc = cax["by_cluster"]
-    cl_means = np.array([bc[c]["HminusD"]["mean"] for c in bc])
-    cl_ns = np.array([bc[c]["n_nuclei"] for c in bc], float)
-    # a1 is the full-panel per-nucleus axis built at the ceiling step above.
-    # The first version said `axis`, a name this script does not define.
-    tot_var = float(np.asarray(a1, float).var(ddof=1))
-    between = float(np.average((cl_means - np.average(cl_means, weights=cl_ns)) ** 2,
-                               weights=cl_ns))
+    # THREE THINGS WERE WRONG HERE until 3 Nov 2026, all inflating between_cluster:
+    #   (1) cl_means came from cluster_axis_corrected.json, over all 24 VMH clusters
+    #       and 6,048 nuclei, while tot_var came from a1, over the 2,913 Lepr-cluster
+    #       nuclei this script runs on. The ratio divided one population's
+    #       between-cluster variance by another's total. The 24-cluster value is
+    #       0.01076 against 0.00465 for the nine Lepr clusters.
+    #   (2) the two also came from DIFFERENT AXES: a1 is built here, the stored means
+    #       from script 41's own control-gene draw.
+    #   (3) n_min/n_med/n_max were taken over the 24 clusters, so cluster_rel was
+    #       reported at averaging sizes that do not occur in this population.
+    # Cluster means are now computed from a1 itself, over this script's own nuclei.
+    clu = np.array([(meta[col2bc[c]].get("VMH_cluster") or "").strip() for c in cols])
+    a1a = np.asarray(a1, float)
+    assert len(clu) == len(a1a), "cluster labels and axis disagree in length"
+    cl_keys = sorted(set(clu))
+    cl_means = np.array([a1a[clu == k].mean() for k in cl_keys])
+    cl_ns = np.array([(clu == k).sum() for k in cl_keys], float)
+    tot_var = float(a1a.var(ddof=1))
+    between_raw = float(np.average((cl_means - np.average(cl_means, weights=cl_ns)) ** 2,
+                                   weights=cl_ns))
+
+    # The raw weighted variance of cluster means carries the sampling noise of those
+    # means: each is an average of n_c noisy scores. With W = tot_var - true,
+    # E[raw] = true + k*W/N, so true = (raw - k*tot_var/N) / (1 - k/N). Unlike the
+    # raw statistic this CAN return a negative value under no structure, which is
+    # the property that makes a zero control meaningful.
+    k_cl, n_tot = len(cl_keys), float(len(a1a))
+    between = (between_raw - k_cl * tot_var / n_tot) / (1.0 - k_cl / n_tot)
     noise_v = (1.0 - rel) * tot_var
     within_v = tot_var - noise_v - between
+
+    def _between_control(reps=60):
+        """Inject a KNOWN between-cluster variance and check recovery, zero included."""
+        rngc = np.random.default_rng(99)
+        W = max(tot_var - max(between, 0.0), 1e-9)
+        res = []
+        for true_b in (0.0, 0.002, 0.005):
+            got, realized = [], []
+            for _ in range(reps):
+                eff = {kk: rngc.normal(0, np.sqrt(true_b)) for kk in cl_keys}
+                ev = np.array([eff[kk] for kk in cl_keys])
+                realized.append(float(np.average(
+                    (ev - np.average(ev, weights=cl_ns)) ** 2, weights=cl_ns)))
+                y = (np.array([eff[x] for x in clu])
+                     + rngc.normal(0, np.sqrt(W), len(clu)))
+                m = np.array([y[clu == kk].mean() for kk in cl_keys])
+                raw = float(np.average((m - np.average(m, weights=cl_ns)) ** 2,
+                                       weights=cl_ns))
+                tv = float(y.var(ddof=1))
+                got.append((raw - k_cl * tv / n_tot) / (1.0 - k_cl / n_tot))
+            res.append({"injected": true_b,
+                        # The nominal parameter is not what nine clusters actually
+                        # realize. Recovery must be judged against the variance the
+                        # injected effects really have, not against true_b.
+                        "realized_mean": round(float(np.mean(realized)), 6),
+                        "recovered_mean": round(float(np.mean(got)), 6),
+                        "recovered_se": round(
+                            float(np.std(got, ddof=1) / np.sqrt(len(got))), 6)})
+        return res
+
+    between_ctrl = _between_control()
+    print(f">> between-cluster control: {between_ctrl}", flush=True)
 
     def cluster_rel(n):
         return between / (between + (within_v + noise_v) / n)
@@ -265,9 +316,15 @@ def main():
         "variance_split_pct": {
             "capture_noise": round(100 * noise_v / tot_var, 1),
             "between_cluster": round(100 * between / tot_var, 1),
+            "between_cluster_raw_pct": round(100 * between_raw / tot_var, 1),
+            "between_raw": round(between_raw, 6),
+            "between_noise_corrected": round(between, 6),
+            "between_control": between_ctrl,
+            "n_clusters_used": k_cl,
             "within_cluster": round(100 * within_v / tot_var, 1),
             "note": ("noise is (1 - reliability) of the total; between-cluster is the "
-                     "size-weighted variance of the 24 cluster means; within-cluster "
+                     "size-weighted variance of the nine Lepr cluster means, "
+                     "corrected for the sampling noise in those means; within-cluster "
                      "is the remainder")},
         "cluster_mean_reliability": {
             "smallest_cluster": {"n": n_min, "reliability": round(cluster_rel(n_min), 4)},
@@ -277,7 +334,8 @@ def main():
             "conserved_class": {"n": class_n,
                                 "reliability": round(cluster_rel(class_n), 4)},
             "note": ("estimates the cluster's value RELATIVE TO OTHER CLUSTERS, so "
-                     "within-cluster variation counts against it. Sizes are read from "
+                     "within-cluster variation counts against it. Sizes are the nine "
+                     "Lepr clusters' own, computed here rather than read from "
                      "cluster_axis_corrected.json, so the floor follows the data rather "
                      "than a literal in the text")},
         "detectability_bound_conversion": {

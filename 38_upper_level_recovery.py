@@ -1,4 +1,13 @@
 #!/usr/bin/env python3
+# SUPERSEDED, RETAINED FOR PROVENANCE. This ran the pre-3-Nov-2026 nested
+# decomposition, whose expected-mean-square coefficients were valid only under
+# balance. Its balanced control passed and could only have passed: under balance
+# the class-level coefficients coincide, so the class error was invisible, and the
+# control did not test the cluster level at all, where the old divisor was wrong
+# even under balance. control_passes here tests whether the SIMULATION is sane
+# (null_null < 0.1), not whether the estimator recovers a known value.
+# The positive control the manuscript refers to is nested_positive_control() in
+# 22_nested_partition.py, which injects known components into the real design.
 """
 38_upper_level_recovery.py - does the nested estimator report class-level variance that is
 not there?

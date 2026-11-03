@@ -134,7 +134,7 @@ MANIFEST = [
      "assignment (2,453), not 2,913 and not the 2,452 doublet-free set"),
 
     # ---- 2.2 nested partition
-    ("cluster-in-class component", 3.57, "nested_partition.json",
+    ("cluster-in-class component", 4.73, "nested_partition.json",
      ["nested_all_vmh", "pct_cluster_in_class", "mean"], "mean over 20 draws"),
     ("nuclei in the partition", 5441, "nested_partition.json", ["n_nuclei"],
      "NOT QUOTED. VMH nuclei carrying a non-doublet conserved class; an intermediate the manuscript does not state"),
@@ -362,14 +362,14 @@ MANIFEST = [
     ("variance split, capture noise", 73.9, "axis_reliability.json",
      ["derived", "variance_split_pct", "capture_noise"],
      "percent of per-nucleus variance that is capture noise, as (1 - reliability)"),
-    ("variance split, between cluster", 5.0, "axis_reliability.json",
+    ("variance split, between cluster", 2.8, "axis_reliability.json",
      ["derived", "variance_split_pct", "between_cluster"],
      "size-weighted variance of the 24 cluster means as a percent of the total. NOT "
      "the 3.57% nested cluster-within-class component, which is a different object"),
-    ("variance split, within cluster", 21.1, "axis_reliability.json",
+    ("variance split, within cluster", 23.3, "axis_reliability.json",
      ["derived", "variance_split_pct", "within_cluster"],
      "the remainder; counts AGAINST a cluster mean's reliability, not toward it"),
-    ("reliability, smallest cluster", 0.7674, "axis_reliability.json",
+    ("reliability, smallest cluster", 0.644, "axis_reliability.json",
      ["derived", "cluster_mean_reliability", "smallest_cluster", "reliability"],
      "cluster mean as an estimate of that cluster's value relative to others, at the "
      "smallest of the 24. The size is read from the data, so this follows the "
@@ -377,9 +377,9 @@ MANIFEST = [
     ("smallest cluster, n", 63, "axis_reliability.json",
      ["derived", "cluster_mean_reliability", "smallest_cluster", "n"],
      "nuclei in the smallest VMH cluster, from cluster_axis_corrected.json"),
-    ("reliability at 200 nuclei", 0.9128, "axis_reliability.json",
+    ("reliability at 200 nuclei", 0.8517, "axis_reliability.json",
      ["derived", "cluster_mean_reliability", "at_200", "reliability"], "same, at n=200"),
-    ("reliability, conserved class", 0.9898, "axis_reliability.json",
+    ("reliability, conserved class", 0.9816, "axis_reliability.json",
      ["derived", "cluster_mean_reliability", "conserved_class", "reliability"],
      "same, at the 1,857 nuclei of the conserved Lepr class"),
     ("bound conversion, 0.10", 0.196, "axis_reliability.json",
@@ -405,14 +405,14 @@ MANIFEST = [
     # nothing declares from is invisible to it however much the paper takes from there.
     # Methods also attributed these controls to the nested decomposition, which reads
     # as script 22; script 22 has no random-panel control at all.
-    ("random panels, class component mean", 0.8261, "correctness_checks.json",
+    ("random panels, class component mean", 0.6758, "correctness_checks.json",
      ["check_B_random_panels", "class_mean"],
      "mean class component over 100 detectability-matched random panels, scored by the "
      "same decomposition as the effector panel. Both arms carry the same upward bias, "
      "which is why the comparison holds where neither value stands alone"),
-    ("random panels, class component median", 0.6196, "correctness_checks.json",
+    ("random panels, class component median", 0.4535, "correctness_checks.json",
      ["check_B_random_panels", "class_median"], "median of the same 100"),
-    ("observed class component, this control", 2.636, "correctness_checks.json",
+    ("observed class component, this control", 1.5946, "correctness_checks.json",
      ["check_B_random_panels", "observed_class"],
      "the effector panel's class component in the SINGLE control-gene draw used for "
      "this control; not the 20-draw value, and not comparable to it"),
@@ -541,11 +541,11 @@ MANIFEST = [
     # random one: a RANGE ENDPOINT is far likelier than a mean to be a short decimal,
     # so the check was blind to ranges specifically. In both cases below the central
     # value was declared and its range was not, and the range is what a reader checks.
-    ("cluster-in-class component, low draw", 2.7957, "nested_partition.json",
+    ("cluster-in-class component, low draw", 3.7085, "nested_partition.json",
      ["nested_all_vmh", "pct_cluster_in_class", "min"],
      "lowest of the 20 control-gene draws; quoted as 2.80 beside the declared mean "
      "of 3.57"),
-    ("cluster-in-class component, high draw", 4.2666, "nested_partition.json",
+    ("cluster-in-class component, high draw", 5.6571, "nested_partition.json",
      ["nested_all_vmh", "pct_cluster_in_class", "max"], "highest of the same 20"),
     ("Trpc5 detection, lowest cluster", 30.1, "trpc5_depth.json",
      ["downsampling", "pct_detected_raw_min"],
@@ -555,6 +555,166 @@ MANIFEST = [
      "quoted floor wrong, and the declaration would still pass"),
     ("Trpc5 detection, highest cluster", 68.0, "trpc5_depth.json",
      ["downsampling", "pct_detected_raw_max"], "highest, Lepr_2"),
+
+    # ---- the class level after the estimator correction (2 Nov 2026).
+    # nested() used expected-mean-square coefficients for a balanced design at
+    # both levels; see its docstring in 22_nested_partition.py. The cluster term
+    # was understated and the class term inflated. Everything below is from the
+    # corrected function, and the class component is now reported rather than
+    # withheld because the reason for withholding it was the bias, not the design.
+    ("class component", 1.6293, "nested_partition.json",
+     ["nested_all_vmh", "pct_class", "mean"],
+     "share of per-nucleus variance at the conserved-class level, mean over 20 "
+     "control-gene draws. The superseded formula gave 2.6884; about 40% of that "
+     "was cluster variance leaking through the wrong coefficient"),
+    ("class component, low draw", 0.836, "nested_partition.json",
+     ["nested_all_vmh", "pct_class", "min"], "lowest of the 20 draws"),
+    ("class component, high draw", 2.3907, "nested_partition.json",
+     ["nested_all_vmh", "pct_class", "max"], "highest of the 20"),
+    ("class component, null 95th", 2.142, "nested_partition.json",
+     ["class_component_null", "null_p95"],
+     "95th percentile of 200 permutations that reassign whole CELLS to classes, "
+     "preserving cells per class and every cell size. The observed 1.6293 does "
+     "not exceed it"),
+    ("class component, percentile of null", 92.0, "nested_partition.json",
+     ["class_component_null", "percentile_of_null"],
+     "where the observed value falls in that null. Quoted rather than a verdict, "
+     "because 92 is below the conventional line and close to it, which is a "
+     "different situation from a value sitting inside its null"),
+    ("random panels reaching the component", 0.08, "correctness_checks.json",
+     ["check_B_random_panels", "fraction_of_panels_at_or_above_observed"],
+     "fraction of 100 detectability-matched arbitrary panels producing a class "
+     "component at least as large as the effector panel's. Under the superseded "
+     "formula this was 0.03 and the check passed; it now fails"),
+    ("random panels, class 95th", 2.0521, "correctness_checks.json",
+     ["check_B_random_panels", "class_p95"],
+     "95th percentile of that random distribution, above the observed 1.5946"),
+
+    # ---- contrast specificity (57_contrast_specificity.py).
+    ("contrast specificity, joint", 24, "contrast_specificity.json",
+     ["joint_largest_of_five"],
+     "of 100 detectability-matched panels, how many reproduced the LARGEST of the "
+     "five class contrasts. Criterion fixed before the run, so that one panel "
+     "passing on one contrast cannot be read as passing on all five"),
+    ("contrast specificity, Esr1", 5, "contrast_specificity.json",
+     ["panels_reaching_observed", "Lepr_vs_Esr1"],
+     "signed: a panel counts only if its difference is at least as large in the "
+     "same direction. Two of five contrasts at 5 is close to what five tries give "
+     "by chance, so the lowest two are the least reproduced rather than specific"),
+    ("contrast specificity, Fezf1", 5, "contrast_specificity.json",
+     ["panels_reaching_observed", "Lepr_vs_Fezf1"], "same"),
+    ("contrast specificity, Nfib", 10, "contrast_specificity.json",
+     ["panels_reaching_observed", "Lepr_vs_Nfib"],
+     "22 without the depth correction, which was applied after the uncorrected "
+     "result was seen; Nfib is the one class with appreciably lower median depth"),
+    ("contrast specificity, Dlk1", 25, "contrast_specificity.json",
+     ["panels_reaching_observed", "Lepr_vs_Dlk1"], "same"),
+    ("contrast specificity, Foxp2", 31, "contrast_specificity.json",
+     ["panels_reaching_observed", "Lepr_vs_Foxp2"], "same"),
+    ("Lepr vs Esr1, single draw", 0.1423, "contrast_specificity.json",
+     ["observed_single_draw", "Lepr_vs_Esr1"],
+     "the contrast on the one draw the substitution test scores against, NOT the "
+     "20-draw mean of 0.136 that 2.2 reports alongside it"),
+    ("Lepr vs Esr1, labels permuted", 0.002, "contrast_specificity.json",
+     ["control_zero_permuted_labels", "Lepr_vs_Esr1"],
+     "zero control: permuting class labels collapses the largest contrast from "
+     "0.1423 to this, so the differences do belong to the class partition even "
+     "though they are not specific to effector genes"),
+
+
+    # ---- the full label shuffle (27_correctness_checks.py, check_C).
+    # The third null on the class component and the only one it clears. 2.2 quoted
+    # 0.082 and 0.330 for the cluster term from the superseded estimator; both
+    # moved. Declared at the new key paths, which did not exist in the manifest.
+    ("full shuffle, cluster term mean", 0.1085, "correctness_checks.json",
+     ["check_C_full_shuffle", "cluster_in_class", "shuffle_mean"],
+     "200 shuffles of class and cluster labels across all nuclei, destroying every "
+     "grouping. Was 0.082 under the superseded formula"),
+    ("full shuffle, cluster term 95th", 0.438, "correctness_checks.json",
+     ["check_C_full_shuffle", "cluster_in_class", "shuffle_p95"],
+     "95th percentile of the same; was 0.330. No shuffle reached the observed "
+     "4.6514 on that single draw"),
+    ("full shuffle, class term mean", 0.023, "correctness_checks.json",
+     ["check_C_full_shuffle", "class", "shuffle_mean"],
+     "the same null at the class level, which the manuscript did not previously "
+     "report. The class component clears this one and not the other two: it is "
+     "distinguishable from no structure at all, but neither from an arbitrary "
+     "regrouping of the same cells nor from an arbitrary gene panel"),
+    ("full shuffle, class term 95th", 0.1446, "correctness_checks.json",
+     ["check_C_full_shuffle", "class", "shuffle_p95"],
+     "95th percentile; the observed 1.5946 is far above it, and no shuffle "
+     "reached the observed value"),
+
+
+    # ---- per-class specificity (58_class_excess_specificity.py).
+    # Judged against the 95th percentile, the same rule applied to the class
+    # component and the contrasts. Two of the four classes above the floor are
+    # specific and two are not; the threshold was NOT moved after the counts were
+    # seen. Foxp2 and Lepr sit at zero, where a one-sided count is vacuous, so they
+    # are untestable this way rather than unanimous at 100 of 100.
+    #
+    # THE TESTED STATISTIC IS NOT THE REPORTED ONE. This is the raw one-way
+    # component on a single depth-residualized draw; 2.3's figures are excesses over
+    # per-class nulls averaged over draws. Esr1 reads 16.474 here and 15.65 there.
+    # The counts transfer; the values do not.
+    ("class specificity, Esr1", 1, "class_excess_specificity.json",
+     ["panels_reaching_observed", "Esr1"],
+     "of 100 detectability-matched panels. Esr1's component rests on the single "
+     "Esr1_1 cell, so this is specificity of a single-cell effect"),
+    ("class specificity, Nfib", 4, "class_excess_specificity.json",
+     ["panels_reaching_observed", "Nfib"],
+     "the one class carrying DISTRIBUTED structure that is also specific to the "
+     "effector panel; this is what the title's within-class clause rests on"),
+    ("class specificity, Fezf1", 6, "class_excess_specificity.json",
+     ["panels_reaching_observed", "Fezf1"],
+     "does not clear the 95th percentile. Fezf1's component rests on Lepr_7"),
+    ("class specificity, Dlk1", 20, "class_excess_specificity.json",
+     ["panels_reaching_observed", "Dlk1"],
+     "the other distributed-structure class, and not specific. Named rather than "
+     "averaged with the rest"),
+    ("class specificity, Esr1 observed", 16.474, "class_excess_specificity.json",
+     ["observed_per_class", "Esr1"],
+     "NOT QUOTED as a result. The raw single-draw component the count above is "
+     "scored against, recorded so the two statistics are not confused"),
+
+
+    # ---- the between-cluster term, corrected 3 Nov 2026.
+    # THREE ERRORS, all inflating it. The cluster means came from
+    # cluster_axis_corrected.json (24 VMH clusters, 6,048 nuclei) while the total
+    # came from this script's own axis over the 2,913 Lepr-cluster nuclei, so the
+    # ratio divided one population by another; the two also came from different
+    # control-gene draws; and the averaging sizes were the 24 clusters'. Means are
+    # now computed from the script's own axis over its own nine clusters.
+    #
+    # The raw weighted variance of cluster means also carries their sampling noise.
+    # With W = total - true, E[raw] = true + k*W/N, so
+    # true = (raw - k*total/N)/(1 - k/N). Unlike the raw statistic this can return
+    # a negative value under no structure, which is what makes a zero control mean
+    # anything.
+    ("between-cluster variance, raw", 0.006689, "axis_reliability.json",
+     ["derived", "variance_split_pct", "between_raw"],
+     "NOT QUOTED. Size-weighted variance of the nine Lepr cluster means before the "
+     "noise correction"),
+    ("between-cluster variance, corrected", 0.006039, "axis_reliability.json",
+     ["derived", "variance_split_pct", "between_noise_corrected"],
+     "NOT QUOTED as a variance; quoted as 2.8% of the total"),
+    ("between control, zero injection", -5.2e-05, "axis_reliability.json",
+     ["derived", "variance_split_pct", "between_control", 0, "recovered_mean"],
+     "NOT QUOTED. The control that the raw statistic could not pass: under no "
+     "between-cluster structure the corrected estimator returns zero, at 1.4 "
+     "standard errors below it"),
+    ("between control, realized at 0.005", 0.004182, "axis_reliability.json",
+     ["derived", "variance_split_pct", "between_control", 2, "realized_mean"],
+     "NOT QUOTED. Recovery is judged against what nine clusters actually realize, "
+     "which is about 85% of the nominal injected parameter, not against the "
+     "parameter itself. Recovered 0.004154 against this, within 0.1 SE"),
+    ("reliability, median cluster", 0.8963, "axis_reliability.json",
+     ["derived", "cluster_mean_reliability", "median_cluster", "reliability"],
+     "at 301 nuclei, the median of the nine Lepr clusters"),
+    ("reliability, largest cluster", 0.9487, "axis_reliability.json",
+     ["derived", "cluster_mean_reliability", "largest_cluster", "reliability"],
+     "at 644 nuclei"),
+
 ]
 
 
