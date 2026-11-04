@@ -271,7 +271,7 @@ def fig4():
     seps = pg["separations_sd"]
     for cname, col, lab in (
             ("balanced_2", ORANGE, "50/50 split"),
-            ("sohn_3_skew", BLUE, "18/18/64, unbalanced ($-$0.2 / +0.8)"),
+            ("sohn_3_skew", BLUE, "18/18/64, unbalanced"),
             ("sohn_3", RED, "18/18/64, symmetric")):
         y = [pg["grid"][f"{cname}_sd{e}"]["pct_bic"] for e in seps]
         ax[1].plot(seps, y, "s--", color=col, ms=4, label=lab)
@@ -279,7 +279,16 @@ def fig4():
     ax[1].set_xlabel("Simulated separation (SD)")
     ax[1].set_ylabel("Simulations recovering two components (%)")
     ax[1].set_ylim(-4, 105)
-    ax[1].legend(frameon=False, fontsize=5.5, loc="upper left")
+    # No corner is free. Orange and blue occupy the top from separation 2 onward
+    # and their rises cut the left; the symmetric curve runs along the bottom to
+    # 3.5 and then climbs through the lower right, which is where the legend sat.
+    # The one clear rectangle is the middle, roughly 2.7 to 4.2 on x and 40 to 75
+    # on y, and the labels have to be short enough to stay inside it: the
+    # displacement sizes for the unbalanced case are given in the figure legend
+    # and in section 2.4 instead.
+    ax[1].legend(frameon=False, fontsize=5, loc="center left",
+                 bbox_to_anchor=(0.33, 0.57), handlelength=1.2,
+                 labelspacing=0.35, borderpad=0.2)
     ax[1].set_title("B   Mixture recovery by configuration", loc="left")
 
     raw = dep["downsampling"]["pct_detected_raw"]
@@ -292,7 +301,9 @@ def fig4():
     ax[2].set_ylabel(f"Nuclei {it('Trpc5')}-positive (%)")
     lg = dep["logistic_cluster_given_depth"]
     ax[2].legend(frameon=False, fontsize=6.5)
-    ax[2].set_title("C   " + r"$\it{Trpc5}$" + " detection by cluster, with depth matching",
+    # \bfit, not \it: a mathtext fragment does not inherit the title's bold
+    # weight, so the gene name rendered lighter than the words beside it.
+    ax[2].set_title("C   " + r"$\bfit{Trpc5}$" + " detection by cluster, with depth matching",
                     loc="left")
 
     print("  note: Fig4A is built from one control-gene draw "

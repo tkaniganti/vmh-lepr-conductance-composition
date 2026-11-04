@@ -715,6 +715,84 @@ MANIFEST = [
      ["derived", "cluster_mean_reliability", "largest_cluster", "reliability"],
      "at 644 nuclei"),
 
+
+    # ---- confidence intervals and the two Trpc5 population scores in 2.9.
+    # These have been in the manuscript since well before 3 Nov and were never
+    # declared. They are quoted correctly and the values are stored; the gap is
+    # simply that the declaration pass covered the point estimates and not the
+    # intervals beside them. Found by reading the sentence, not by any check:
+    # a value that is quoted and undeclared is invisible to the manifest, and
+    # the undeclared listing shows it among a hundred others.
+    ("POMC balance axis, CI low", -0.161, "crosspop_scores.csv",
+     ["POMC", "HminusD_ci_lo"],
+     "bootstrap lower bound on the arcuate POMC balance-axis score of -0.097"),
+    ("POMC balance axis, CI high", -0.0349, "crosspop_scores.csv",
+     ["POMC", "HminusD_ci_hi"], "upper bound; the text rounds this to -0.035"),
+    ("POMC Trpc5 score", 0.9422, "crosspop_scores.csv", ["POMC", "Trpc5_mean"],
+     "arcuate POMC Trpc5 module score in log-normalized units; quoted as 0.942. "
+     "NOT a fold change, for the reason given for the 0.656 difference"),
+    ("POMC Trpc5 CI low", 0.8343, "crosspop_scores.csv", ["POMC", "Trpc5_ci_lo"],
+     "quoted as 0.834"),
+    ("POMC Trpc5 CI high", 1.0563, "crosspop_scores.csv", ["POMC", "Trpc5_ci_hi"],
+     "quoted as 1.056"),
+
+
+    ("AgRP Trpc5 score", 0.2862, "crosspop_scores.csv", ["AgRP", "Trpc5_mean"],
+     "the other half of the comparison the 0.656 difference is computed from; "
+     "quoted as 0.286, and like the POMC value it is a log-normalized module "
+     "score, not a fold change"),
+    ("AgRP Trpc5 CI low", 0.2066, "crosspop_scores.csv", ["AgRP", "Trpc5_ci_lo"],
+     "quoted as 0.207"),
+    ("AgRP Trpc5 CI high", 0.3743, "crosspop_scores.csv", ["AgRP", "Trpc5_ci_hi"],
+     "quoted as 0.374"),
+
+
+    # ---- the VMH_SF1 row of crosspop_scores.csv, quoted in 2.9.
+    # The last two of the five intervals the paper states. Found by grepping the
+    # document for the interval pattern, which is the only way a quoted-and-
+    # undeclared value can surface: the manifest reports on what it was told, so
+    # a value nobody declared is outside its comparison entirely.
+    ("VMH depolarizing module", -0.0431, "crosspop_scores.csv",
+     ["VMH_SF1", "DEPOL_mean"],
+     "the module that carried the VMH population's position; quoted as -0.043, "
+     "and negative only in this population"),
+    ("VMH depolarizing module, CI low", -0.0709, "crosspop_scores.csv",
+     ["VMH_SF1", "DEPOL_ci_lo"], "quoted as -0.071"),
+    ("VMH depolarizing module, CI high", -0.0149, "crosspop_scores.csv",
+     ["VMH_SF1", "DEPOL_ci_hi"], "quoted as -0.015"),
+    ("VMH Trpc5 score", 0.4614, "crosspop_scores.csv",
+     ["VMH_SF1", "Trpc5_mean"],
+     "intermediate between POMC at 0.9422 and AgRP at 0.2862; quoted as 0.461"),
+    ("VMH Trpc5 CI low", 0.4022, "crosspop_scores.csv",
+     ["VMH_SF1", "Trpc5_ci_lo"], "quoted as 0.402"),
+    ("VMH Trpc5 CI high", 0.522, "crosspop_scores.csv",
+     ["VMH_SF1", "Trpc5_ci_hi"], "quoted as 0.522"),
+    ("VMH SF1 nuclei, cross-population", 424, "crosspop_scores.csv",
+     ["VMH_SF1", "n"],
+     "after the UMI filter, the population placed against POMC and AgRP"),
+
+
+    # ---- the expected-mean-square coefficients Methods quotes.
+    # They were computed, returned by nested(), and then dropped: the
+    # nested_counts dict copied three keys and not these. They became
+    # load-bearing when the 3 Nov reorganization moved the sentence that quotes
+    # them into a paragraph-opening position, which the position triage counts.
+    # The ratio between them is the whole reason the class term cannot be formed
+    # by subtracting MS cluster-within-class, so they carry the argument.
+    ("EMS coefficient c1", 61.502, "nested_partition.json",
+     ["nested_counts", "ems_c1"],
+     "the coefficient on the cluster component in E(MS cluster-within-class); "
+     "quoted as 61.5"),
+    ("EMS coefficient c2", 253.915, "nested_partition.json",
+     ["nested_counts", "ems_c2"],
+     "the coefficient on the cluster component in E(MS class); quoted as 253.9. "
+     "The superseded formula subtracted MS cluster-within-class directly, which "
+     "assumes this equals c1; here they differ by a factor of four"),
+    ("EMS coefficient c3", 861.823, "nested_partition.json",
+     ["nested_counts", "ems_c3"],
+     "NOT QUOTED. The divisor on the class component, unchanged by the "
+     "correction: the superseded n0a was already identically equal to it"),
+
 ]
 
 
@@ -727,12 +805,30 @@ def load(fn):
     return json.load(open(p))
 
 
+# Columns a CSV may use as its row key, in the order tried. Until 3 Nov this was
+# hardcoded to "gene", which was true of the only two CSVs anything declared
+# from. crosspop_scores.csv keys on "population", so every lookup against it
+# returned None and the declaration came back "value not found" even though the
+# value was plainly in the row. A resolver that silently matches nothing looks
+# exactly like a missing value.
+ROW_KEYS = ("gene", "population", "cluster", "name", "id")
+
+
 def fetch(obj, path, fn):
-    """Walk a key path. For a CSV the first path element is a gene name."""
+    """Walk a key path. For a CSV the first path element is the row key."""
     if fn.endswith(".csv"):
-        gene, col = path[0], path[1]
-        row = next((r for r in obj if r.get("gene") == gene), None)
-        return None if row is None else float(row[col])
+        key, col = path[0], path[1]
+        row = None
+        for kc in ROW_KEYS:
+            row = next((r for r in obj if r.get(kc) == key), None)
+            if row is not None:
+                break
+        if row is None:
+            return None
+        if col not in row:
+            raise KeyError(f"{fn}: row {key!r} has no column {col!r}; "
+                           f"columns are {sorted(row)}")
+        return float(row[col])
     cur = obj
     for k in path:
         if isinstance(cur, list):

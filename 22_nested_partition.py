@@ -361,7 +361,13 @@ def main():
            "nested_all_vmh": {k: summ([r[k] for r in nested_recs])
                               for k in ("pct_class", "pct_cluster_in_class", "pct_residual")},
            "nested_counts": {k: nested_recs[0][k]
-                             for k in ("n_classes", "n_class_by_cluster", "n")},
+                             # the coefficients too: Methods quotes c1 and c2 to
+                             # explain why the class term cannot be formed by
+                             # subtracting MS cluster-within-class, and they were
+                             # computed, returned by nested(), and then dropped
+                             # here because this dict copied only three keys.
+                             for k in ("n_classes", "n_class_by_cluster", "n",
+                                       "ems_c1", "ems_c2", "ems_c3")},
            "within_lepr_class_nine_clusters": {
                "pct": summ([r["pct"] for r in focus_recs]),
                "eta2_mean": round(float(np.mean([r["eta2"] for r in focus_recs])), 4),
